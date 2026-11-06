@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-INT-001
-normative: "### FG-INT-001 — Воздействие одного материального тела на другое\n\nMUST: взаимодействие тел определяется как изменение результирующих материальных и/или динамических состояний с явными правилами переноса вещества. Геометрический контакт, трение, адгезия, прочное соединение и фактическое сращивание являются различными состояниями; контакт не должен автоматически выполнять material merge. Операции, использующие форму инструмента, не должны без отдельного правила уничтожать материал самого инструмента."
+normative: "### FG-INT-001 — Контакт не означает автоматического слипания\n\nMUST: Обнаружение геометрического контакта двух независимых FractalRing не должно само по себе создавать между ними физическое родительство или сливать их материальные поля."
 lifecycle:
   accepted: false
   current: false
@@ -10,3 +10,11 @@ relations:
     target:
       kind: artifact
       path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

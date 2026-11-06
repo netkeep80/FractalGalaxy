@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-COMP-001
-normative: "### FG-COMP-001 — FractalRing как рекурсивная физическая иерархия\n\nMUST: самостоятельный материальный объект представлен FractalRing со своим физическим кадром, а составной FractalRing задаёт физическую группу дочерних FractalRing со своими локальными преобразованиями. Активная физическая структура является лесом без циклов; у дочернего узла не может быть двух физических родителей. MAY: агрегаты вложены рекурсивно. MUST: смена физического родителя не меняет процедурную родословную, seed, исходные соседские данные, B или D, а мировая позиция/ориентация при переподчинении сохраняется. Агрегированная масса учитывает каждого материального владельца ровно один раз; агрегат не является общим генератором материи своих детей."
+normative: "### FG-COMP-001 — Ациклическое физическое родительство\n\nMUST: Активная иерархия FractalRing должна быть лесом без циклов, в котором каждый узел имеет не более одного физического родителя."
 lifecycle:
   accepted: false
   current: false
@@ -13,4 +13,8 @@ relations:
   - predicates: [documents]
     target:
       kind: artifact
-      path: "docs/verification-plan.md"
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

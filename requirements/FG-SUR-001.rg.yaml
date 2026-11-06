@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-SUR-001
-normative: "### FG-SUR-001 — Согласованное двумерное уточнение границы\n\nMUST: наружные грани кубических областей допускают двумерное рекурсивное уточнение по четырём дочерним участкам и устойчивую локальную адресацию. Уточнения поверхности и объёма должны согласовываться по общей границе. MUST: границы разных уровней детализации не создают физически противоречивую поверхность; непрерывность значения материала и геометрические швы проверяются отдельно."
+normative: "### FG-SUR-001 — Поверхностное разбиение грани ячейки\n\nMUST: При уточнении грани кубической области система должна определять четыре непересекающиеся внутренностями дочерние параметрические области с устойчивыми адресами."
 lifecycle:
   accepted: false
   current: false
@@ -10,3 +10,11 @@ relations:
     target:
       kind: artifact
       path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

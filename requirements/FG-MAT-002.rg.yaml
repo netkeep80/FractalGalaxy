@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-MAT-002
+normative: "### FG-MAT-002 — Геометрия не является источником истины\n\nMUST: Перестроение или удаление визуального меша и физических кэшей не должно изменять значение M(x) для того же тела и пространственного запроса."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

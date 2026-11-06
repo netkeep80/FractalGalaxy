@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-RENDER-001
-normative: "### FG-RENDER-001 — Независимая GPU-визуализация\n\nMUST: положение камеры и визуальный уровень детализации изменяют только производные данные визуализации; они не должны изменять материальное состояние, физическую связность или количество вещества. SHOULD: браузерная визуализация и генерация активной геометрии используют WebGPU/WGSL и сохраняют модель B/D независимой от конкретного GPU API. Отсутствие WebGPU не должно трактоваться как отсутствие материального состояния."
+normative: "### FG-RENDER-001 — Камера не изменяет авторитетное состояние\n\nMUST: Изменение камеры или визуального LOD должно оставлять материальное M, процедурные входы, физическую принадлежность и физические массовые характеристики неизменными."
 lifecycle:
   accepted: false
   current: false
@@ -10,3 +10,11 @@ relations:
     target:
       kind: artifact
       path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

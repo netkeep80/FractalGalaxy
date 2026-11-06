@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-EDIT-001
-normative: "### FG-EDIT-001 — Разреженное хранение результатов взаимодействий\n\nMUST: D представляет пространственно локализованное текущее отличие от B, включая пустоту, дополнительный материал и изменённые свойства. D не обязан иметь ту же топологию, что B. MUST: состояние без журналов воздействий сериализуемо и восстанавливаемо; кэши допускается полностью уничтожить и пересоздать. SHOULD: эквивалентные поддеревья уплотняются без потери материальной семантики."
+normative: "### FG-EDIT-001 — D хранит результат, а не журнал событий\n\nMUST: Система должна представлять D как пространственно локализованное результирующее изменение состояния B, не требуя для вычисления текущего M последовательного воспроизведения истории воздействий."
 lifecycle:
   accepted: false
   current: false
@@ -13,4 +13,8 @@ relations:
   - predicates: [documents]
     target:
       kind: artifact
-      path: "docs/verification-plan.md"
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

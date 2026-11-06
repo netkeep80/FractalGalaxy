@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-ID-002
+normative: "### FG-ID-002 — Сохранение физической идентичности при reparent\n\nMUST: При перемещении существующего FractalRing между физическими агрегатами его собственный физический идентификатор должен сохраняться, если не создаётся новая материальная сущность."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"
