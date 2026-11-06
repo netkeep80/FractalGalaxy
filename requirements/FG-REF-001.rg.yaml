@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-REF-001
+normative: "### FG-REF-001 — Согласованное уточнение и агрегаты\n\nMUST: раскрытие подуровней само по себе не создаёт и не уничтожает вещество и не меняет авторитетные физические характеристики тела. Агрегированная масса родительской области равна сумме масс дочерних с определённой точностью; центры масс и тензоры инерции согласованы с разбиением. Различать истинное изменение материального состояния и уточнение вычислительного представления."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/verification-plan.md"

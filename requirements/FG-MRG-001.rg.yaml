@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-MRG-001
+normative: "### FG-MRG-001 — Физическое слияние как результат взаимодействия\n\nMUST: при материальном слиянии нескольких тел создаётся результирующее тело, составленное из их актуальных материальных состояний в согласованной системе координат, с единственным физическим владением каждой частью массы. Сохранять результаты индивидуальных изменений и материальную идентичность включений. MUST: слияние не уничтожает материал посредством наложения чужих масок пустоты; пересечения требуют явной материальной семантики. Жёсткая связь без фактического сращивания допустима без material merge."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/verification-plan.md"

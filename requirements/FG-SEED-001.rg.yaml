@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-SEED-001
+normative: "### FG-SEED-001 — Адресная воспроизводимая генерация из seed\n\nMUST: псевдослучайные параметры фрактального уточнения детерминированы как минимум seed, версией генератора, пространственным адресом, уровнем и доменом/каналом генерации. Результат не должен зависеть от порядка обхода, параллельного планирования, истории запросов, текущего LOD или положения камеры. MUST: смена версии генератора не должна молча менять ранее сохранённый мир. SHOULD: целочисленное адресное ядро имеет воспроизводимые тест-векторы."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/verification-plan.md"

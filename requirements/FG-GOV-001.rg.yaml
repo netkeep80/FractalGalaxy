@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-GOV-001
+normative: "### FG-GOV-001 — Закреплённая проверка RepoGuard\n\nMUST: управление pull request выполняет RepoGuard v6.0.1, закреплённый точным immutable Git SHA, на точных BASE и HEAD. Изменения требований и связанных ресурсов должны иметь причинную трассировку. RepoGuard не подменяет предметные тесты или принятие архитектуры Автором. Первичное подключение на пустой базе является отдельным bootstrap-переходом; не выдавать его за доказанный зелёный gate."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: ".github/workflows/repo-guard.yml"
+  - predicates: [requires]
+    target:
+      kind: artifact
+      path: "LICENSE"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "README.md"
