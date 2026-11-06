@@ -54,4 +54,5 @@ jobs:
         run: |
           set -euo pipefail
           npm --prefix .tools/repo-guard install --omit=dev --ignore-scripts --silent
-          node .tools/repo-guard/dist/repo-guard.mjs --repo-root . check --base "$RG_BASE" --head "$RG_HEAD" --format json || true
+          node .tools/repo-guard/dist/repo-guard.mjs --repo-root . check --base "$RG_BASE" --head "$RG_HEAD" --format json > "$RUNNER_TEMP/fg-repoguard.json" || true
+          node -e 'const o=JSON.parse(require("node:fs").readFileSync(process.env.RUNNER_TEMP+"/fg-repoguard.json","utf8")); console.log(JSON.stringify({j1:o.j1,j2:o.j2,j3:{ok:o.j3?.ok,changed:o.j3?.changed},diagnostics:o.diagnostics},null,2))'
