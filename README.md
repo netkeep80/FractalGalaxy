@@ -22,7 +22,7 @@
 
 Workflow в `.github/workflows/repo-guard.yml` закрепляет точный upstream commit `74db97791e6da8a75287164f0d0b41579108f114` (tag `v6.0.1`) и сравнивает exact PR `BASE/HEAD`.
 
-**Bootstrap caveat:** исходный `main` содержит только `LICENSE` и не имеет Requirements. Проверка первого bootstrap-PR ожидаемо может завершиться RED по baseline J1/J2. Не обходить её фиктивными отношениями, отключением проверок или утверждением о GREEN. После принятия и bootstrap-merge требуются повторная проверка на новой базе и отдельная настройка required status check в GitHub branch protection/ruleset; workflow не создаёт защиту ветки автоматически.
+**Bootstrap caveat:** исходный `main` содержит только `LICENSE` и не имеет Requirements. Точный запуск на HEAD `e17aee0a124abd6afe3ad009f646db7968ec53a7` показал: `HEAD J1 = 22/22`, `HEAD J2 = 17 rooted`, `J3 = GREEN`; единственная диагностика полной проверки — `unjustified_resource` для `LICENSE` в исходном BASE. Это RED базовой J1-closure, а не нарушение требований кандидата. Не обходить её фиктивными отношениями, отключением проверок или утверждением о GREEN. После принятия и bootstrap-merge требуются повторная проверка на новой базе и отдельная настройка required status check в GitHub branch protection/ruleset; workflow не создаёт защиту ветки автоматически.
 
 Лицензия проекта: [Unlicense](LICENSE).
 
