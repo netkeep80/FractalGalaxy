@@ -104,7 +104,7 @@ async function measure(root,binary,profile,samples){
     await cdp.evaluate('document.querySelector("button[data-view=deformed]").click()');
     await cdp.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const triangles=await cdp.evaluate('Number(document.getElementById("studioMeshTriangles").textContent)');
-    const timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));samples.push(performance.now()-start);}return samples;})()');
+    const timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
     if(cdp.exceptions.length)throw new Error('browser exceptions: '+JSON.stringify(cdp.exceptions));
     const sorted=[...timings].sort((a,b)=>a-b);
     return {
