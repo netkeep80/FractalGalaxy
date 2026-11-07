@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-WEB-002
 normative: "### FG-WEB-002 — Синхронная визуализация topology, interface и deformed geometry\n\nИнтерактивное веб-демо должно позволять наглядно сопоставлять одну и ту же выбранную топологическую область в reference и deformed представлениях, выбирать effective media по обе стороны грани, видеть решение NONE/PRESENT/REFINE, четыре incident octants и quadtree-разбиение surface patch. Обе 3D-проекции должны использовать общую камеру, а визуализация должна вызываться через те же E1 surface/geometry функции, что доступны ядру."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

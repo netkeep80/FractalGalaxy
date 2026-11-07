@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-VOL-006
 normative: "### FG-VOL-006 — Адаптивная классификация effective material field\n\nКлассификация procedural/material области должна уметь использовать прямые доказательства однородности и при необходимости лениво уточнять только виртуальные octree-потомки до заданной глубины. Результат должен сообщать итог Homogeneous/Mixed и диагностическую стоимость уточнения, не создавая FractalRing или иных persistent записей только ради классификации."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

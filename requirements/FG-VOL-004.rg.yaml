@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-VOL-004
 normative: "### FG-VOL-004 — Классификация объёмной области\n\nДля поддерживаемой области алгоритм должен уметь сообщить, доказана ли однородность относительно одной effective medium либо требуется дальнейшее уточнение. Прямое доказательство Homogeneous(medium) не должно требовать материализации восьми детей."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

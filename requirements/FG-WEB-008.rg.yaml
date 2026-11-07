@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-WEB-008
 normative: "### FG-WEB-008 — Визуализация порога geometry influence\n\nExperiment Studio должен позволять изменять influence magnitude, geometry threshold и compliance и показывать состояние BLOCKED/ACTIVE, excess и effective offset через тот же threshold API ядра. Подпороговое воздействие не должно визуально смещать material vertex."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

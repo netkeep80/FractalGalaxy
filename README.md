@@ -80,7 +80,7 @@ npm run demo
 11. [Иерархия требований](docs/requirements-hierarchy.md)
 12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 104 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 104 принятых и текущих native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` приняты Author'ом и имеют `accepted:true/current:true/published:false`.
 
 ## Основные термины
 
