@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-003
+normative: "### FG-STUDIO-003 — Адресная навигация по уровням\n\nКогда ячейка выбрана, пользователь должен иметь возможность перейти к её родителю либо к указанному дочернему octant в пределах поддерживаемой глубины. Studio должен сохранять корректный octree-адрес, а навигация не должна создавать постоянное состояние FractalRing."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-001
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

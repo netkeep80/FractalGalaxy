@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-001
+normative: "### FG-STUDIO-001 — Исследование выбранной области\n\nПользователь должен иметь возможность выбрать пространственную область в представлении Studio, получить её канонический octree-адрес и исследовать свойства и соседство на выбранном уровне детализации без изменения авторитетного состояния мира."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

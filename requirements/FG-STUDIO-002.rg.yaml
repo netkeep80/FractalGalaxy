@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-002
+normative: "### FG-STUDIO-002 — Выбор ячейки непосредственно в 3D\n\nЕсли пользователь щёлкает по видимой выбираемой области в reference 3D-представлении в режиме выбора, Studio должен определить пересечение указателя с внешней гранью reference domain, выбрать ячейку текущей глубины непосредственно за этой гранью и показать её канонический адрес. Перетаскивание, распознанное как вращение камеры, не должно менять выделение. Нажатие вне геометрии не должно создавать ложное выделение."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-001
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

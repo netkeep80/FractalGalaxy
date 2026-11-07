@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-005
+normative: "### FG-STUDIO-005 — Согласованные представления\n\n2D-срез и reference/deformed 3D-представления должны ссылаться на одно каноническое выделение. Переключение способа визуализации должно сохранять выделение и не изменять результат Resolve(B,D)."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-009
+normative: "### FG-STUDIO-009 — Однозначная диагностика участков интерфейса\n\nВ режиме диагностики Studio должен различать доказанные interface patches, unresolved участки, соседние ячейки и вспомогательную топологию с помощью однозначной легенды. Недоказанные участки запрещено показывать как доказанную поверхность."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-008
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

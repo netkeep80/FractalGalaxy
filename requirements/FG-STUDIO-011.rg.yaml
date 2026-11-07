@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-011
+normative: "### FG-STUDIO-011 — Рабочее пространство с инспектором\n\nStudio должен размещать основные средства настройки отдельно от визуализации и предоставлять правую панель с состоянием выделения и диагностикой. Изменение высоты списка диагностики не должно приводить к растягиванию области 3D-визуализации пустым пространством."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
