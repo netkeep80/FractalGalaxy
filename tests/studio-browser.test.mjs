@@ -316,6 +316,16 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       await setControl('interfaceSource','procedural');
     });
 
+    await t.test('English locale has no leftover Cyrillic in user-facing control and diagnostic labels', async () => {
+      await setControl('studioLanguage','en');
+      const leftovers = await cdp.evaluate('(() => {const selectors=[".hero .eyebrow",".hero h1",".hero .lede",".controls label span",".controls h2",".inspector h2",".inspector dt",".inspector .note",".viewport-head h2",".viewport-head p",".lab-controls label span",".lab-controls h3",".lab-controls p.note",".section-heading h2",".section-heading p",".studio-inspector dt",".studio-inspector h3",".studio-inspector h4",".studio-inspector .lab-readout span",".studio-toolbar button",".studio-language span",".studio-picking-help",".explain-strip span","footer"];return selectors.flatMap(sel=>[...document.querySelectorAll(sel)].filter(el=>/[А-Яа-яЁё]/.test(el.textContent)).map(el=>({selector:sel,text:el.textContent.trim().slice(0,90)})));})()');
+      assert.deepEqual(leftovers,[], 'English user-facing labels must be translated');
+      assert.equal(await cdp.evaluate('document.getElementById("view").getAttribute("aria-label")'),'Material-field slice');
+      assert.equal(await cdp.evaluate('document.getElementById("studioChildButton").getAttribute("aria-label")'),'Enter selected octant');
+      await setControl('studioLanguage','ru');
+      assert.equal(await cdp.evaluate('document.getElementById("studioChildButton").getAttribute("aria-label")'),'Перейти в выбранный октант');
+    });
+
     await t.test('locale switches without material change and persists across page reload', async () => {
       const before=await inspect();
       const hash=await browserHash();

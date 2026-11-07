@@ -1,6 +1,9 @@
 export const translations = Object.freeze({
   ru: Object.freeze({
     'studio.workspace':'Рабочее пространство Studio',
+    'studio.header.eyebrow': "FractalGalaxy · Студия экспериментов",
+    'studio.breadcrumb': "Путь по иерархии октодерева",
+    'studio.enterChild': "Перейти в выбранный октант",
     'studio.media.EMPTY':"Пустота",
     'studio.media.SOLID':"Твёрдая среда",
     'studio.media.ROCK':"Камень",
@@ -119,6 +122,9 @@ export const translations = Object.freeze({
   }),
   en: Object.freeze({
     'studio.workspace':'Studio workspace',
+    'studio.header.eyebrow': "FractalGalaxy · Experiment Studio",
+    'studio.breadcrumb': "Octree hierarchy path",
+    'studio.enterChild': "Enter selected octant",
     'studio.media.EMPTY':"Empty",
     'studio.media.SOLID':"Solid",
     'studio.media.ROCK':"Rock",

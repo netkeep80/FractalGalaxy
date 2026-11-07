@@ -926,6 +926,7 @@ function applyStudioLocale() {
     ['studio.helpDrag', '.lab-controls .note:nth-of-type(2)'],
     ['studio.e0Help', '.viewport-head p'],
     ['studio.footer', 'footer span'],
+    ['studio.header.eyebrow', '.hero .eyebrow'],
     ['studio.header.title', '.hero h1'],
     ['studio.header.lede', '.hero .lede'],
     ['studio.e1Label', '.section-heading .eyebrow'],
@@ -979,13 +980,18 @@ function applyStudioLocale() {
     replaceVisibleText(span, tr('studio.explain'+(index+1)));
   });
   const labels = document.querySelectorAll('.inspector dt');
-  if (labels.length >= 5) {
+  if (labels.length >= 10) {
     replaceVisibleText(labels[0], tr('studio.coordinate'));
     replaceVisibleText(labels[1], tr('studio.path'));
     replaceVisibleText(labels[2], tr('studio.generatorState'));
     replaceVisibleText(labels[4], tr('studio.owner'));
+    replaceVisibleText(labels[5], tr('studio.beforeSplit'));
+    replaceVisibleText(labels[9], tr('studio.totalParts'));
   }
   $('studioLanguage').setAttribute('aria-label', tr('studio.language'));
+  $('view').setAttribute('aria-label', tr('studio.slice'));
+  $('studioBreadcrumbs').setAttribute('aria-label', tr('studio.breadcrumb'));
+  $('studioChildButton').setAttribute('aria-label', tr('studio.enterChild'));
   document.querySelector('.studio-view-modes').setAttribute('aria-label', tr('studio.viewMode'));
   referenceCanvas.setAttribute('aria-label', tr('studio.reference'));
   deformedCanvas.setAttribute('aria-label', tr('studio.deformed'));
