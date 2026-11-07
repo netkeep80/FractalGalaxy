@@ -223,7 +223,7 @@ function intervalQuery(node,minY,maxY,visit,counters){
   if(node.minY<maxY)intervalQuery(node.right,minY,maxY,visit,counters);
 }
 function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
-  const outgoing=triangles.map(()=>new Set());
+  const outgoing=new Array(triangles.length);
   const incoming=new Int32Array(triangles.length);
   const allPairs=triangles.length*(triangles.length-1)/2;
   let candidatePairs=0,relations=0,edges=0;
@@ -243,11 +243,10 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
     const from=relation>0?second:first,to=relation>0?first:second;
-    if(!outgoing[from].has(to)){
-      outgoing[from].add(to);
-      incoming[to]++;
-      edges++;
-    }
+    if(outgoing[from])outgoing[from].push(to);
+    else outgoing[from]=[to];
+    incoming[to]++;
+    edges++;
   };
 
   if(broadPhase){
@@ -316,7 +315,8 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     }
     remaining[chosen]=0;
     order.push(chosen);
-    for(const to of outgoing[chosen]){
+    const next=outgoing[chosen];
+    if(next)for(const to of next){
       orderOperations++;
       incoming[to]--;
       if(incoming[to]===0&&remaining[to]){
