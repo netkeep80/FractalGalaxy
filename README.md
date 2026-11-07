@@ -36,7 +36,8 @@
 - четыре incident octants для surface-driven refinement;
 - live-probe выбранной octree-ячейки: реальная классификация текущего `M`, соседняя ячейка и стоимость refinement;
 - recursive interface extraction: доказанные и unresolved surface patches на reference/deformed представлениях;
-- каноническая SurfacePatch geometry: общие reference/deformed рёбра соседних patches совпадают до triangulation.
+- каноническая SurfacePatch geometry: общие reference/deformed рёбра соседних patches совпадают до triangulation;
+- детерминированная triangulation proven patches с topology-derived winding.
 
 Исходники страницы находятся в [demo/](demo/). Публикация выполняется workflow [pages.yml](.github/workflows/pages.yml).
 
@@ -77,7 +78,7 @@ npm run demo
 11. [Иерархия требований](docs/requirements-hierarchy.md)
 12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 92 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 94 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
 
 ## Основные термины
 

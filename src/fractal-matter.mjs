@@ -475,3 +475,9 @@ export {
   assertSharedEdgeGeometry
 } from './geometry/surface-patch.mjs';
 
+export {
+  surfacePatchWinding,
+  triangulateSurfacePatchGeometry,
+  triangleNormal
+} from './geometry/triangulation.mjs';
+

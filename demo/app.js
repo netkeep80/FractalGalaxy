@@ -19,7 +19,8 @@ import {
   adjacentOctreePath,
   octreeBoundsForPath,
   extractMaterialInterface,
-  buildSurfacePatchGeometry
+  buildSurfacePatchGeometry,
+  triangulateSurfacePatchGeometry
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -42,7 +43,8 @@ const lab = {
   side: $('faceSide'),
   mediumA: $('mediumA'),
   mediumB: $('mediumB'),
-  deformBlend: $('deformBlend')
+  deformBlend: $('deformBlend'),
+  showTriangulation: $('showTriangulation')
 };
 
 $('version').textContent = E0_VERSION;
@@ -388,7 +390,7 @@ function drawBox(context, canvasElement, bounds, deformed, stroke = 'rgba(118,17
   }
 }
 
-function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, deformed, fill, stroke) {
+function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, deformed, fill, stroke, triangulate = false) {
   const geometry = buildSurfacePatchGeometry({
     bounds,
     axis,
@@ -408,19 +410,32 @@ function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, def
   context.strokeStyle = stroke;
   context.lineWidth = 1.4;
   context.stroke();
+
+  if (triangulate && lab.showTriangulation.checked) {
+    const mesh = triangulateSurfacePatchGeometry(geometry);
+    const [a, b] = mesh.diagonal;
+    context.strokeStyle = 'rgba(215, 255, 241, .72)';
+    context.lineWidth = 1;
+    context.setLineDash([4, 3]);
+    context.beginPath();
+    context.moveTo(points[a].x, points[a].y);
+    context.lineTo(points[b].x, points[b].y);
+    context.stroke();
+    context.setLineDash([]);
+  }
 }
 
 function drawExtractedSurface(context, canvasElement, bounds, axis, side, deformed) {
   for (const item of currentSurfaceExtraction.present ?? []) {
     drawSurfacePatch(
       context, canvasElement, bounds, axis, side, item.patch, deformed,
-      'rgba(71, 231, 177, .20)', 'rgba(93, 244, 193, .88)'
+      'rgba(71, 231, 177, .20)', 'rgba(93, 244, 193, .88)', true
     );
   }
   for (const item of currentSurfaceExtraction.unresolved ?? []) {
     drawSurfacePatch(
       context, canvasElement, bounds, axis, side, item.patch, deformed,
-      'rgba(255, 178, 74, .16)', 'rgba(255, 190, 91, .88)'
+      'rgba(255, 178, 74, .16)', 'rgba(255, 190, 91, .88)', false
     );
   }
 }

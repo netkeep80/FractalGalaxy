@@ -28,6 +28,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(html, /id="presentPatches"/);
   assert.match(html, /id="unresolvedPatches"/);
   assert.match(html, /id="visitedPairs"/);
+  assert.match(html, /id="showTriangulation"/);
   assert.match(html, /type="module" src="\.\/app\.js"/);
 
   assert.match(app, /from '\.\/src\/fractal-matter\.mjs'/);
@@ -37,6 +38,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(app, /extractMaterialInterface/);
   assert.match(app, /drawExtractedSurface/);
   assert.match(app, /buildSurfacePatchGeometry/);
+  assert.match(app, /triangulateSurfacePatchGeometry/);
   assert.match(app, /selectedPoint/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /OUTSIDE → EMPTY/);
@@ -63,6 +65,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
     assert.equal(typeof module.extractInterfacePatches, 'function');
     assert.equal(typeof module.buildSurfacePatchGeometry, 'function');
     assert.equal(typeof module.assertSharedEdgeGeometry, 'function');
+    assert.equal(typeof module.triangulateSurfacePatchGeometry, 'function');
     assert.equal(typeof module.cubeToSphereDeformation, 'function');
   } finally {
     await rm(temp, { recursive: true, force: true });

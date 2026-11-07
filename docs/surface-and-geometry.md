@@ -169,3 +169,23 @@ Web Studio рисует proven patches зелёным, unresolved — янтар
 Этот слой всё ещё не определяет диагональ quad и не создаёт triangles. Он сначала фиксирует crack-free vertex/edge topology, чтобы последующая triangulation не могла скрыть расхождение общей геометрии.
 
 Experiment Studio теперь использует этот же `buildSurfacePatchGeometry` при рисовании reference/deformed patches; отдельного вычисления corner vertices в UI нет.
+
+## 12. Детерминированная triangulation
+
+После того как SurfacePatch имеет канонические reference/deformed vertices и crack-free edge identity, quad можно безопасно разбить на triangles.
+
+E1 использует фиксированную canonical diagonal:
+
+```text
+vertex 0 ↔ vertex 2
+```
+
+и два triangle records. Deformation `Φ` не меняет indices или diagonal — меняются только coordinates.
+
+Winding определяется reference topology и направлением выбранной грани от cell A к соседу B. Поэтому orientation не зависит от camera, renderer или порядка построения patch.
+
+Важно: triangulation применяется только к **proven interface patches**. `unresolved` patch не получает triangles, потому что само существование/форма материальной границы ещё не доказаны volume model.
+
+Текущая triangulation пока не решает adaptive coarse/fine LOD stitching и T-junctions. Это отдельная следующая задача поверх уже канонических vertex/edge identities.
+
+Experiment Studio может показывать canonical diagonal пунктиром. Переключатель влияет только на rendering и не изменяет interface extraction.
