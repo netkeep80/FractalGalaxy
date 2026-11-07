@@ -665,3 +665,62 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
   }
 });
+
+
+test('S3 acceptance: regional surface mode and canonical nonlinear topology grid are live in Studio', {timeout:45000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const temp=await mkdtemp(join(tmpdir(),'fg-s3-regional-'));
+  let server,chrome;
+  try{
+    const web=await startServer();server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))',true,'workspace ready');
+    const setControl=(id,value,type='change')=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.value='+JSON.stringify(String(value))+';el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+
+    await setControl('interfaceSource','procedural');
+    await setControl('fixture','solid');
+    await setControl('deformBlend','1','input');
+    const before=await cdp.evaluate('(() => ({path:document.getElementById("studioPath").textContent,mass:document.getElementById("massRoot").textContent}))()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
+    const regional=await cdp.evaluate('(() => ({mode:document.querySelector(".studio-views").dataset.surfaceMode,triangles:Number(document.getElementById("studioMeshTriangles").textContent),vertices:Number(document.getElementById("studioMeshVertices").textContent),faces:Number(document.getElementById("studioRegionalFaces").textContent),unresolved:Number(document.getElementById("studioRegionalUnresolved").textContent),path:document.getElementById("studioPath").textContent,mass:document.getElementById("massRoot").textContent}))()');
+    assert.equal(regional.mode,'regional');
+    assert.ok(regional.triangles>0&&regional.vertices>0&&regional.faces>0);
+    assert.equal(regional.unresolved,0);
+    assert.equal(regional.path,before.path);
+    assert.equal(regional.mass,before.mass);
+
+    await cdp.evaluate(`(() => {
+      window.__fgS3GridPaths=[];
+      if(window.__fgS3GridCaptureInstalled)return;
+      window.__fgS3GridCaptureInstalled=true;
+      const proto=CanvasRenderingContext2D.prototype;
+      const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,stroke=proto.stroke;
+      proto.beginPath=function(){this.__fgS3Path=[];return begin.call(this);};
+      proto.moveTo=function(x,y){this.__fgS3Path?.push([x,y]);return move.call(this,x,y);};
+      proto.lineTo=function(x,y){this.__fgS3Path?.push([x,y]);return line.call(this,x,y);};
+      proto.stroke=function(){
+        if(this.canvas?.id==='deformedView'&&this.__fgS3Path?.length>2){
+          window.__fgS3GridPaths.push(this.__fgS3Path.map(point=>[...point]));
+        }
+        return stroke.call(this);
+      };
+    })()`);
+    await cdp.evaluate('(() => {const e=document.getElementById("showReferenceGrid");e.checked=true;e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+    const grid=await cdp.evaluate('(() => ({count:(window.__fgS3GridPaths??[]).length,max:Math.max(0,...(window.__fgS3GridPaths??[]).map(path=>path.length))}))()');
+    assert.ok(grid.count>0,'deformed topology grid must draw sampled polylines');
+    assert.ok(grid.max>=9,'grid line must contain canonical intermediate samples, not only two endpoints');
+    assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions in S3 regional mode');
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});

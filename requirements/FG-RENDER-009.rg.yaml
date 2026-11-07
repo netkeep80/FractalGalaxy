@@ -18,7 +18,23 @@ relations:
     target:
       kind: artifact
       path: "src/geometry/coarse-fine-stitch.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/surface/adaptive-regional-extractor.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/regional-surface-mesh.mjs"
   - predicates: [verified_by]
     target:
       kind: artifact
       path: "tests/coarse-fine-stitch.test.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/adaptive-regional-surface.test.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/regional-surface-mesh.test.mjs"

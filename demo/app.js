@@ -35,7 +35,11 @@ import {
   worldGeometryOffsets,
   worldStoreStats,
   geometryVertexOffsets,
-  assembleProvenSurfaceMesh
+  assembleProvenSurfaceMesh,
+  octreePathsAtDepth,
+  extractRegionalMaterialInterfaces,
+  assembleRegionalSurfaceMesh,
+  buildCanonicalTopologyGrid
 } from './src/fractal-matter.mjs';
 import {paintProvenSurface,proofGapBoundaryVertices} from './studio-surface-renderer.mjs';
 import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from './studio-vertex-editor.mjs';
@@ -327,8 +331,12 @@ let activeImpactRingId=null;
 let lastInfluenceResult=null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 let currentSurfaceMesh = { reference: null, deformed: null };
+let currentRegionalExtraction = { faces: [], present: [], unresolved: [], stats: { facePairs: 0 } };
+let currentRegionalMesh = { reference: null, deformed: null };
 let studioSurfaceMode = 'surface';
 const SURFACE_TESSELLATION_DEPTH=1;
+const REGIONAL_CELL_DEPTH=2;
+const REGIONAL_MAX_DEPTH=5;
 
 function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
@@ -479,15 +487,22 @@ function drawLine(context, canvasElement, a, b, { deformed = false, stroke = 'rg
 }
 
 function drawCubeGrid(context, canvasElement, deformed) {
-  const steps = 4;
-  for (const axis of ['x', 'y', 'z']) {
-    for (const side of [-1, 1]) {
-      for (let i = 0; i <= steps; i++) {
-        const t = -1 + 2 * i / steps;
-        drawLine(context, canvasElement, facePoint(axis, side, -1, t), facePoint(axis, side, 1, t), { deformed });
-        drawLine(context, canvasElement, facePoint(axis, side, t, -1), facePoint(axis, side, t, 1), { deformed });
-      }
-    }
+  const grid=buildCanonicalTopologyGrid({
+    steps:4,
+    curveSubdivisions:2,
+    deformation:deformed?currentVertexDeformation():point=>point
+  });
+  context.strokeStyle='rgba(121,150,174,.30)';
+  context.lineWidth=1;
+  for(const line of grid.lines){
+    const points=line.vertexIndices.map(index=>{
+      const vertex=grid.vertices[index];
+      return rotateProject(deformed?vertex.position:vertex.reference,canvasElement);
+    });
+    context.beginPath();
+    context.moveTo(points[0].x,points[0].y);
+    for(const point of points.slice(1))context.lineTo(point.x,point.y);
+    context.stroke();
   }
 }
 
@@ -705,6 +720,31 @@ function drawProofSurface(context,canvasElement,deformed){
   paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed});
   drawProofGaps(context,canvasElement,probe.boundsA,probe.axis,probe.side,deformed);
 }
+function drawRegionalProofGaps(context,canvasElement,deformed){
+  const deform=deformed?currentVertexDeformation():point=>point;
+  context.save();
+  context.lineWidth=1.8;
+  context.setLineDash([6,5]);
+  context.strokeStyle='#f3b35c';
+  for(const item of currentRegionalExtraction.unresolved){
+    const bounds=octreeBoundsForPath(item.pathA,{min:-1,max:1});
+    const boundary=proofGapBoundaryVertices({
+      bounds,axis:item.axis,side:item.side,patch:makeReferenceFacePatch(),
+      deformation:deform,tessellationDepth:1
+    });
+    const points=boundary.map(vertex=>rotateProject(deformed?vertex.position:vertex.reference,canvasElement));
+    context.beginPath();context.moveTo(points[0].x,points[0].y);
+    for(const point of points.slice(1))context.lineTo(point.x,point.y);
+    context.closePath();context.stroke();
+  }
+  context.restore();
+}
+function drawRegionalProofSurface(context,canvasElement,deformed){
+  const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
+  if(!mesh)return;
+  paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed});
+  drawRegionalProofGaps(context,canvasElement,deformed);
+}
 function surfaceProofLabel(mesh){
   if(!mesh)return '—';
   if(mesh.stats.unresolvedPatches){
@@ -717,11 +757,14 @@ function surfaceProofLabel(mesh){
     : tr('studio.surface.absent');
 }
 function refreshSurfaceDisplayInfo(){
-  const mesh=currentSurfaceMesh.deformed;
+  const regional=studioSurfaceMode==='regional';
+  const mesh=regional?currentRegionalMesh.deformed:currentSurfaceMesh.deformed;
   if(!mesh)return;
   $('studioSurfaceStatus').textContent=surfaceProofLabel(mesh);
   $('studioMeshTriangles').textContent=String(mesh.triangles.length);
   $('studioMeshVertices').textContent=String(mesh.vertices.length);
+  if($('studioRegionalFaces'))$('studioRegionalFaces').textContent=String(currentRegionalExtraction.stats.facePairs??0);
+  if($('studioRegionalUnresolved'))$('studioRegionalUnresolved').textContent=String(currentRegionalExtraction.unresolved.length);
 }
 
 function drawGeometry(canvasElement, deformed) {
@@ -742,6 +785,7 @@ function drawGeometry(canvasElement, deformed) {
   if(lab.showReferenceGrid.checked)drawCubeGrid(context,canvasElement,deformed);
   else if(studioSurfaceMode==='debug')drawContextHierarchy(context,canvasElement,deformed);
   if(studioSurfaceMode==='surface')drawProofSurface(context,canvasElement,deformed);
+  else if(studioSurfaceMode==='regional')drawRegionalProofSurface(context,canvasElement,deformed);
   else drawSelectedFace(context,canvasElement,deformed);
   drawAxes(context,canvasElement,deformed);
   if(deformed)drawEditableVertices(context,canvasElement);
@@ -849,6 +893,26 @@ function renderGeometryLab() {
     reference:assembleProvenSurfaceMesh({...geometryOptions}),
     deformed:assembleProvenSurfaceMesh({...geometryOptions,deformation:currentVertexDeformation()})
   };
+  if(live){
+    currentRegionalExtraction=extractRegionalMaterialInterfaces(model.root,{
+      cellPaths:octreePathsAtDepth(REGIONAL_CELL_DEPTH),
+      maxDepth:REGIONAL_MAX_DEPTH,
+      outsideMedium:'EMPTY'
+    });
+    currentRegionalMesh={
+      reference:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction}),
+      deformed:assembleRegionalSurfaceMesh({
+        extraction:currentRegionalExtraction,
+        deformation:currentVertexDeformation()
+      })
+    };
+  }else{
+    currentRegionalExtraction={faces:[],present:[],unresolved:[],stats:{facePairs:0}};
+    currentRegionalMesh={
+      reference:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction}),
+      deformed:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction,deformation:currentVertexDeformation()})
+    };
+  }
   refreshSurfaceDisplayInfo();
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
@@ -993,6 +1057,7 @@ function createStudioWorkspace() {
       </div>
       <div class="studio-surface-modes" role="group" aria-label="Режим поверхности">
         <button type="button" data-surface-mode="surface">Поверхность</button>
+        <button type="button" data-surface-mode="regional">Регион</button>
         <button type="button" data-surface-mode="debug">Диагностика</button>
       </div>
       <label class="studio-language"><span>Язык интерфейса</span>
@@ -1047,6 +1112,10 @@ function createStudioWorkspace() {
       <output id="studioMeshTriangles">0</output>
       <span id="studioVerticesLabel">Канонических вершин</span>
       <output id="studioMeshVertices">0</output>
+      <span id="studioRegionalFacesLabel">Региональных граней</span>
+      <output id="studioRegionalFaces">0</output>
+      <span id="studioRegionalUnresolvedLabel">Неразрешённых в регионе</span>
+      <output id="studioRegionalUnresolved">0</output>
     </div>
     <h4 id="studioDiagnosticsHeading">Состояние</h4>
   `;
@@ -1240,6 +1309,8 @@ function applyStudioLocale() {
     ['studio.vertex.rings', '#studioRingCountLabel'],
     ['studio.surface.triangles', '#studioTrianglesLabel'],
     ['studio.surface.vertices', '#studioVerticesLabel'],
+    ['studio.surface.regionalFaces', '#studioRegionalFacesLabel'],
+    ['studio.surface.regionalUnresolved', '#studioRegionalUnresolvedLabel'],
     ['studio.surface.legendProven', '#studioLegendProven'],
     ['studio.surface.legendUnresolved', '#studioLegendUnresolved']
   ];

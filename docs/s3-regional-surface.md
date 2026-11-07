@@ -40,3 +40,12 @@ The current endpoint-only support-grid chord rendering is therefore a falsificat
 ## Non-goals
 
 S3 does not add a GPU depth buffer, collision solver, production Fuse, arbitrary self-intersection repair or unbounded world extraction.
+
+
+## Implemented completion candidate
+
+S3-B extends the same-depth S3-A extractor with an adaptive mixed-depth leaf-region path. Coarse/fine face ownership is normalized to equal-depth incident proof cells before invoking the existing material-interface extractor. Regional geometry then promotes proven patches to one canonical target depth and globally deduplicates canonical vertices. The current bounded strategy prefers deterministic promotion over optimized transition triangles: correctness first, triangle-count optimization later.
+
+S3-C Studio adds a Regional surface mode over a finite depth-2 region, refined by material proof through E0 depth 5. It shows the regional proven mesh and unresolved proof contours with explicit regional face/unresolved counters. This view remains derived and does not write M, D or WorldStore.
+
+S3-D replaces endpoint-only nonlinear support-grid chords. The displayed root topology grid is now sampled through canonical intermediate vertices; intersecting lines reuse a shared canonical vertex identity and evaluate deformation at that point.
