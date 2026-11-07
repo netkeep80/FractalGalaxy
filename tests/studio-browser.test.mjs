@@ -575,9 +575,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
         proto.moveTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return move.call(this,x,y);};
         proto.lineTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return line.call(this,x,y);};
         proto.fill=function(...args){
-          if(this.canvas?.id==='deformedView'
-            &&this.__fgSurfaceFillPath?.length===3
-            &&String(this.fillStyle).startsWith('rgb(')){
+          if(this.canvas?.id==='deformedView'&&this.__fgSurfaceFillPath?.length===3){
             window.__fgSurfaceFillPaths.push(this.__fgSurfaceFillPath.map(point=>[...point]));
           }
           return fill.apply(this,args);
