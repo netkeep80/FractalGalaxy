@@ -821,7 +821,8 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     assert.equal(beforeEdit.rings,0);
     assert.equal(beforeEdit.hasVertex,true,'editable canonical center must be sampled by Regional mesh');
     assert.equal(beforeEdit.fills.length,beforeEdit.regional.triangles.length);
-    const hit=await cdp.evaluate("(() => {const h=__fgS3Audit.handles().find(vertex=>vertex.key==='0.75,0.75,1'),canvas=document.getElementById('deformedView'),rect=canvas.getBoundingClientRect();return{x:rect.left+h.screen.x*rect.width/canvas.width,y:rect.top+h.screen.y*rect.height/canvas.height};})()");
+    const hit=await cdp.evaluate("(async()=>{const canvas=document.getElementById('deformedView');canvas.scrollIntoView({block:'center'});await new Promise(requestAnimationFrame);const h=__fgS3Audit.handles().find(vertex=>vertex.key==='0.75,0.75,1'),rect=canvas.getBoundingClientRect(),x=rect.left+h.screen.x*rect.width/canvas.width,y=rect.top+h.screen.y*rect.height/canvas.height;return{x,y,over:document.elementFromPoint(x,y)===canvas};})()");
+    assert.equal(hit.over,true,'Regional edit pointer must target the visible deformed canvas');
     await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:hit.x,y:hit.y,button:'left',clickCount:1});
     await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:hit.x+65,y:hit.y-15,button:'left',buttons:1});
     await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:hit.x+65,y:hit.y-15,button:'left',clickCount:1});
