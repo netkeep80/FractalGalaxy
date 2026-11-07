@@ -626,7 +626,7 @@ function drawContextHierarchy(context, canvasElement, deformed) {
 
 function selectedFaceHandles() {
   const probe=currentProbeContext();
-  return editableFaceVertices(probe.boundsA,probe.axis,probe.side);
+  return editableFaceVertices(probe.boundsA,probe.axis,probe.side,referenceVertexKey);
 }
 function drawEditableVertices(context,canvasElement) {
   if(!$('studioVertexEdit')?.checked)return;

@@ -1,5 +1,6 @@
-import {referenceVertexKey} from './src/fractal-matter.mjs';
-export function editableFaceVertices(bounds,axis,side){
+// Pure browser/node projection helpers: canonical key function is supplied by the core.
+export function editableFaceVertices(bounds,axis,side,keyOf){
+  if(typeof keyOf!=='function')throw new Error('canonical vertex key function required');
   if(!bounds?.min||!bounds?.max||!['x','y','z'].includes(axis)||![-1,1].includes(side))throw new Error('invalid selected face');
   const ai=['x','y','z'].indexOf(axis);
   const tangents=[0,1,2].filter(i=>i!==ai);
@@ -9,7 +10,7 @@ export function editableFaceVertices(bounds,axis,side){
     reference[ai]=side===1?bounds.max[ai]:bounds.min[ai];
     reference[tangents[0]]=bounds.min[tangents[0]]+(bounds.max[tangents[0]]-bounds.min[tangents[0]])*u/2;
     reference[tangents[1]]=bounds.min[tangents[1]]+(bounds.max[tangents[1]]-bounds.min[tangents[1]])*v/2;
-    result.push({reference,key:referenceVertexKey(reference)});
+    result.push({reference,key:keyOf(reference)});
   }
   return result;
 }

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from '../demo/studio-vertex-editor.mjs';
-import {octreeBoundsForPath} from '../src/fractal-matter.mjs';
+import {octreeBoundsForPath,referenceVertexKey} from '../src/fractal-matter.mjs';
 test('selected face exposes nine deterministic canonical shared vertex keys',()=>{
- const vertices=editableFaceVertices(octreeBoundsForPath([7]),'z',1);
+ const vertices=editableFaceVertices(octreeBoundsForPath([7]),'z',1,referenceVertexKey);
  assert.equal(vertices.length,9);
  assert.equal(new Set(vertices.map(x=>x.key)).size,9);
  assert.ok(vertices.every(x=>x.reference[2]===1));
@@ -23,7 +23,7 @@ test('inverse camera-plane drag projects to exact requested XY screen movement w
  }
 });
 test('vertex picking chooses nearest visible handle and rejects outside area',()=>{
- const vertices=editableFaceVertices(octreeBoundsForPath([]),'z',1);
+ const vertices=editableFaceVertices(octreeBoundsForPath([]),'z',1,referenceVertexKey);
  const project=p=>({x:p[0]*50,y:p[1]*50,depth:p[2]});
  const hit=pickFaceVertex({x:0,y:0,vertices,project});
  assert.equal(hit.key,'0,0,1');
