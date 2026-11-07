@@ -92,3 +92,53 @@ test('unresolved outline samples the same canonical midpoint as adjacent tessell
  assert.deepEqual(gapMid.position,provenMid.position);
  assert.equal(gap.length,8,'depth-1 outline has corners plus one midpoint per edge');
 });
+
+
+test('PERF visibility broad-phase removes at least 99% of all-pairs work on a sparse 6400-triangle field',()=>{
+ const cols=80,rows=80,vertices=[],triangles=[];
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+   const base=vertices.length;
+   const px=x*10,py=y*10;
+   vertices.push(
+     {reference:[px,py,0],position:[px,py,0]},
+     {reference:[px+2,py,0],position:[px+2,py,0]},
+     {reference:[px,py+2,0],position:[px,py+2,0]}
+   );
+   triangles.push({indices:[base,base+1,base+2],decision:'PRESENT'});
+ }
+ const sparse={vertices,triangles,unresolved:[]};
+ const stats={};
+ const ordered=prepareProofTriangles(
+   sparse,
+   p=>({x:p[0],y:p[1],depth:p[2]}),
+   {stats}
+ );
+ assert.equal(ordered.length,6400);
+ assert.equal(stats.allPairs,6400*6399/2);
+ assert.ok(Number.isInteger(stats.candidatePairs),JSON.stringify(stats));
+ assert.ok(stats.candidatePairs*100<stats.allPairs,
+   'projected broad-phase must eliminate >99% of pair candidates: '+JSON.stringify(stats));
+ assert.ok(stats.orderOperations<stats.allPairs/100,
+   'topological ordering must not rescan the remaining set quadratically: '+JSON.stringify(stats));
+});
+
+test('PERF broad-phase preserves exhaustive visibility order on overlapping adversarial triangles',()=>{
+ const positions=[];
+ const triangles=[];
+ for(let i=0;i<32;i++){
+   const z=(i%7)*.07;
+   const x=(i%4)*.18;
+   const y=Math.floor(i/4)*.08;
+   const base=positions.length;
+   positions.push([x,y,z],[x+.55,y+.06,z+.03],[x+.08,y+.48,z-.02]);
+   triangles.push({indices:[base,base+1,base+2],decision:'PRESENT'});
+ }
+ const adversarial={
+   vertices:positions.map(position=>({reference:position,position})),
+   triangles,unresolved:[]
+ };
+ const project=([x,y,z])=>({x:x*200+y*17,y:y*180-x*11,depth:z+x*.03});
+ const optimized=prepareProofTriangles(adversarial,project,{broadPhase:true}).map(t=>t.index);
+ const exhaustive=prepareProofTriangles(adversarial,project,{broadPhase:false}).map(t=>t.index);
+ assert.deepEqual(optimized,exhaustive);
+});

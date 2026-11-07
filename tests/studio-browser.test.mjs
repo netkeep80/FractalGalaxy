@@ -871,3 +871,49 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
   }
 });
+
+
+test('PERF camera-only regional interaction is cached, coalesced and sub-100ms', {timeout:60000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const temp=await mkdtemp(join(tmpdir(),'fg-perf-camera-'));
+  let server,chrome;
+  try{
+    const web=await startServer();server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:1000,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))',true,'workspace ready');
+    await cdp.until('Boolean(globalThis.__fractalGalaxyPerformance)',true,'performance instrumentation');
+
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
+    await cdp.until('Number(document.getElementById("studioMeshTriangles").textContent)>1000',true,'regional mesh ready');
+    const before=await cdp.evaluate('__fractalGalaxyPerformance.snapshot()');
+
+    const eventResult=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView");canvas.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);for(let i=0;i<24;i++){canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?6:-5,bubbles:true,cancelable:true}));}await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return __fractalGalaxyPerformance.snapshot();})()');
+
+    assert.equal(eventResult.fullBuilds,before.fullBuilds,
+      'camera-only wheel events must not rebuild material/proof state');
+    assert.equal(eventResult.regionalExtractions,before.regionalExtractions,
+      'camera-only events must perform zero regional extractions after warmup');
+    assert.equal(eventResult.regionalMeshAssemblies,before.regionalMeshAssemblies,
+      'camera-only events must perform zero regional mesh assemblies after warmup');
+    assert.ok(eventResult.viewRenders-before.viewRenders<=2,
+      '24 same-task camera events must coalesce to at most two view paints');
+    assert.ok(eventResult.lastVisibilityAllPairs>0);
+    assert.ok(eventResult.lastVisibilityCandidates*100<eventResult.lastVisibilityAllPairs,
+      'regional painter broad-phase must cut candidate pairs by >=100x: '+JSON.stringify(eventResult));
+    assert.ok(eventResult.lastViewMs<=100,
+      'camera-only redraw must meet <=100ms target, got '+eventResult.lastViewMs+'ms');
+    assert.deepEqual(cdp.exceptions,[]);
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});
