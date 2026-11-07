@@ -407,6 +407,55 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [aria-selected=true]").dataset.treeKey'),'octree:'+(await inspect()).path);
     });
 
+
+    await t.test('real 3D vertex drag: threshold gating, impact tree, FractalRing split and pixel-exact geometry preservation',async()=>{
+      await cdp.evaluate('document.getElementById("resetCamera").click()');
+      await setControl('probeDepth','0','input');
+      await setControl('faceAxis','z');
+      await setControl('faceSide','1');
+      await setControl('deformBlend','0','input');
+      await setControl('rndAmplitude','0','input');
+      await setControl('smoothingWeight','0','input');
+      await setControl('influenceMagnitude','0','input');
+      await setControl('influenceThreshold','0.045','input');
+      await setControl('influenceCompliance','1','input');
+      await cdp.evaluate('(() => {const e=document.getElementById("studioVertexEdit");e.checked=true;e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+      assert.equal(await cdp.evaluate('document.querySelector(".studio-views").dataset.mode'),'deformed');
+      const point=await cdp.evaluate('(async()=>{const {referenceProjection}=await import("/studio-picking.mjs");const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);const r=c.getBoundingClientRect();const p=referenceProjection([0,0,1],{width:c.width,height:c.height,camera:{yaw:-.66,pitch:.46,zoom:1}});const x=r.left+p.x*r.width/c.width,y=r.top+p.y*r.height/c.height;return {x,y,over:document.elementFromPoint(x,y)===c};})()');
+      assert.equal(point.over,true,'target must be on the visible actual deformed canvas');
+      const moveDrag=async(dx,dy)=>{
+        await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
+        await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+dx,y:point.y+dy,button:'left',buttons:1});
+        await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});
+      };
+      assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0');
+      await moveDrag(2,0);
+      assert.equal(await cdp.evaluate('document.getElementById("studioVertexKey").textContent'),'0,0,1');
+      assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','subthreshold gesture must not materialize');
+      assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),true);
+      await moveDrag(70,-18);
+      assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'1','active gesture must create FractalRing');
+      assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),false);
+      assert.equal(await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").getAttribute("aria-selected")'),'true');
+      assert.ok(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length')>=1);
+      const deformedBeforeSplit=await cdp.evaluate('document.getElementById("deformedView").toDataURL()');
+      await cdp.evaluate('document.getElementById("studioSplitRing").click()');
+      assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'9');
+      assert.equal(await cdp.evaluate('document.getElementById("studioHierarchyTab_physical").getAttribute("aria-selected")'),'true');
+      assert.equal(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length'),9);
+      assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),deformedBeforeSplit,
+        'split must not move canonical deformed vertex on screen');
+      await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").click()');
+      assert.ok(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length')>=2);
+      await cdp.evaluate('document.getElementById("studioHierarchyTab_source").click()');
+      assert.ok(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length')>=1);
+      await setControl('studioLanguage','en');
+      assert.equal(await cdp.evaluate('document.getElementById("studioVertexEditLabel").textContent'),'Edit vertices');
+      assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Split ring');
+      await setControl('studioLanguage','ru');
+      assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Разделить кольцо');
+    });
+
     assert.deepEqual(cdp.exceptions,[], 'no JavaScript exceptions under acceptance scenarios');
   } finally {
     chrome?.socket.close();
