@@ -51,6 +51,12 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(app, /currentImpact/);
   assert.doesNotMatch(app, /blendedDeformation/);
   assert.match(app, /selectedPoint/);
+  assert.match(app, /pickReferenceCube/);
+  assert.match(app, /selectStudioPath/);
+  assert.match(app, /applyStudioLocale/);
+  assert.match(app, /studioUi = createStudioWorkspace/);
+  assert.match(workflow, /studio-picking\\.mjs/);
+  assert.match(workflow, /studio-i18n\\.mjs/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /OUTSIDE → EMPTY/);
   assert.match(css, /\.lab-grid/);

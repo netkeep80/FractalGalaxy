@@ -25,6 +25,8 @@ import {
   evaluateGeometryInfluence,
   referenceVertexKey
 } from './src/fractal-matter.mjs';
+import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
+import { localeFor, translate, validateTranslations } from './studio-i18n.mjs';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -58,6 +60,9 @@ const lab = {
 $('version').textContent = E0_VERSION;
 
 let selectedPoint = [0, 0, 0];
+let activeLocale = localeFor({ saved: readSavedLanguage(), languages: navigator.languages ?? [navigator.language] });
+function readSavedLanguage() { try { return localStorage.getItem('fractalgalaxy.locale'); } catch { return null; } }
+const tr = key => translate(activeLocale, key);
 
 const ownerColors = {
   left: [67, 213, 255],
@@ -196,9 +201,9 @@ function updateLegend() {
   const legend = $('legend');
   if (controls.mode.value === 'owners') {
     legend.innerHTML = [
-      ['#43d5ff', 'left: x < 0'],
-      ['#ffaf4a', 'right-bottom: x ≥ 0, y < 0'],
-      ['#e15cff', 'right-top: x ≥ 0, y ≥ 0'],
+      ['#43d5ff', tr('studio.legend.left')],
+      ['#ffaf4a', tr('studio.legend.rightBottom')],
+      ['#e15cff', tr('studio.legend.rightTop')],
       ['#06101a', 'EMPTY']
     ].map(([c,t]) => `<span style="--swatch:${c}">${t}</span>`).join('');
   } else {
@@ -276,6 +281,7 @@ const referenceCanvas = $('referenceView');
 const deformedCanvas = $('deformedView');
 const camera = { yaw: -0.66, pitch: 0.46, zoom: 1 };
 let drag = null;
+let studioUi = null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 
 function classificationFor(value) {
@@ -665,6 +671,7 @@ function renderGeometryLab() {
 
   drawGeometry(referenceCanvas, false);
   drawGeometry(deformedCanvas, true);
+  syncStudioSelection(probe);
 }
 
 for (const input of Object.values(lab)) {
@@ -673,12 +680,18 @@ for (const input of Object.values(lab)) {
 
 function attachCameraControls(canvasElement) {
   canvasElement.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
     canvasElement.setPointerCapture(event.pointerId);
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY,
+      x: event.clientX, y: event.clientY, moved: false };
   });
 
   canvasElement.addEventListener('pointermove', event => {
     if (!drag || drag.id !== event.pointerId) return;
+    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) {
+      drag.moved = true;
+    }
+    if (!drag.moved) return;
     const dx = event.clientX - drag.x;
     const dy = event.clientY - drag.y;
     drag.x = event.clientX;
@@ -688,11 +701,28 @@ function attachCameraControls(canvasElement) {
     renderGeometryLab();
   });
 
-  const end = event => {
+  canvasElement.addEventListener('pointerup', event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    const wasClick = !drag.moved &&
+      Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <= 5;
+    drag = null;
+    // Reference-space picker is deliberately not applied to deformed geometry.
+    if (wasClick && canvasElement === referenceCanvas) {
+      const rect = canvasElement.getBoundingClientRect();
+      const hit = pickReferenceCube({
+        x: (event.clientX - rect.left) * canvasElement.width / rect.width,
+        y: (event.clientY - rect.top) * canvasElement.height / rect.height,
+        width: canvasElement.width, height: canvasElement.height, camera
+      });
+      if (hit) {
+        const path = addressForPoint(hit.inside, Number(lab.probeDepth.value)).path;
+        selectStudioPath(path, hit.axis, hit.side);
+      }
+    }
+  });
+  canvasElement.addEventListener('pointercancel', event => {
     if (drag?.id === event.pointerId) drag = null;
-  };
-  canvasElement.addEventListener('pointerup', end);
-  canvasElement.addEventListener('pointercancel', end);
+  });
 
   canvasElement.addEventListener('wheel', event => {
     event.preventDefault();
@@ -711,4 +741,207 @@ $('resetCamera').addEventListener('click', () => {
   renderGeometryLab();
 });
 
+function createStudioWorkspace() {
+  const grid = document.querySelector('.lab-grid');
+  const referencePanel = referenceCanvas.closest('.geometry-view');
+  const deformedPanel = deformedCanvas.closest('.geometry-view');
+  const views = document.createElement('section');
+  views.className = 'studio-views';
+  views.dataset.mode = 'reference';
+  views.innerHTML = `
+    <div class="studio-toolbar">
+      <div class="studio-view-modes" role="group" aria-label="Viewport mode">
+        <button type="button" data-view="reference">Каркас</button>
+        <button type="button" data-view="deformed">Деформация</button>
+        <button type="button" data-view="split">Сравнение</button>
+      </div>
+      <label class="studio-language"><span>Язык интерфейса</span>
+        <select id="studioLanguage" aria-label="Язык интерфейса"><option value="ru">Русский</option><option value="en">English</option></select>
+      </label>
+    </div>
+    <div class="studio-viewports"></div>
+    <p class="studio-picking-help" id="studioPickingHelp"></p>
+  `;
+  grid.insertBefore(views, referencePanel);
+  const viewports = views.querySelector('.studio-viewports');
+  viewports.append(referencePanel, deformedPanel);
+
+  const inspector = document.createElement('section');
+  inspector.className = 'panel studio-inspector';
+  inspector.innerHTML = `
+    <h3 id="studioInspectorHeading">Инспектор</h3>
+    <dl class="studio-selection">
+      <div><dt id="studioLevelLabel">Уровень</dt><dd id="studioLevel">—</dd></div>
+      <div><dt id="studioPathLabel">Octree-адрес</dt><dd id="studioPath">—</dd></div>
+      <div><dt id="studioFaceLabel">Грань</dt><dd id="studioFace">—</dd></div>
+    </dl>
+    <nav id="studioBreadcrumbs" class="studio-breadcrumbs" aria-label="Octree breadcrumb"></nav>
+    <div class="studio-navigation">
+      <button type="button" id="studioParent">↑ Родитель</button>
+      <label><span id="studioChildLabel">Дочерняя область</span>
+        <select id="studioChildOctant" aria-label="Child octant">
+          ${Array.from({length:8}, (_,i)=>`<option value="${i}">${i}</option>`).join('')}
+        </select>
+      </label>
+      <button type="button" id="studioChildButton" aria-label="Enter selected octant">↓</button>
+    </div>
+    <h4 id="studioDiagnosticsHeading">Состояние</h4>
+  `;
+  inspector.append(document.querySelector('.lab-readout'));
+  grid.append(inspector);
+
+  const buttons = [...views.querySelectorAll('[data-view]')];
+  const setMode = mode => {
+    views.dataset.mode = mode;
+    for (const button of buttons) {
+      button.setAttribute('aria-pressed', String(button.dataset.view === mode));
+    }
+  };
+  for (const button of buttons) button.addEventListener('click', () => setMode(button.dataset.view));
+  setMode('reference');
+
+  $('studioParent').addEventListener('click', () => {
+    const parent = parentPath(currentProbeContext().pathA);
+    if (parent) selectStudioPath(parent);
+  });
+  $('studioChildButton').addEventListener('click', () => {
+    const next = childPath(currentProbeContext().pathA, Number($('studioChildOctant').value));
+    if (next) selectStudioPath(next);
+  });
+  $('studioBreadcrumbs').addEventListener('click', event => {
+    const button = event.target.closest('button[data-depth]');
+    if (!button) return;
+    const path = currentProbeContext().pathA.slice(0, Number(button.dataset.depth));
+    selectStudioPath(path);
+  });
+  $('studioLanguage').value = activeLocale;
+  $('studioLanguage').addEventListener('change', event => {
+    activeLocale = event.target.value;
+    try { localStorage.setItem('fractalgalaxy.locale', activeLocale); } catch { /* private mode */ }
+    applyStudioLocale();
+    updateLegend();
+  });
+  return { views, inspector };
+}
+
+function selectStudioPath(path, axis = lab.axis.value, side = Number(lab.side.value)) {
+  const center = centerOfPath(path);
+  selectedPoint = center;
+  lab.probeDepth.value = String(path.length);
+  lab.axis.value = axis;
+  lab.side.value = String(side);
+  controls.zSlice.value = String(center[2]);
+  renderMaterialView();
+}
+
+function syncStudioSelection(probe) {
+  if (!studioUi) return;
+  $('studioLevel').textContent = String(probe.depth);
+  $('studioPath').textContent = formatPath(probe.pathA);
+  $('studioFace').textContent = probe.axis.toUpperCase() + (probe.side > 0 ? '+' : '−');
+  const parent = parentPath(probe.pathA);
+  $('studioParent').disabled = parent === null;
+  $('studioChildButton').disabled = probe.depth >= 4;
+  $('studioChildOctant').disabled = probe.depth >= 4;
+  const nav = $('studioBreadcrumbs');
+  nav.replaceChildren();
+  for (let depth = 0; depth <= probe.depth; depth++) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.depth = String(depth);
+    button.textContent = depth === 0 ? tr('studio.root') : String(probe.pathA[depth - 1]);
+    button.setAttribute('aria-current', String(depth === probe.depth));
+    nav.append(button);
+  }
+}
+
+function replaceVisibleText(element, value) {
+  if (!element) throw new Error('missing localized Studio element');
+  const first = [...element.childNodes].find(node => node.nodeType === 3);
+  if (first) first.nodeValue = value + (element.querySelector('output') ? ' ' : '');
+  else element.textContent = value;
+}
+
+function applyStudioLocale() {
+  validateTranslations();
+  document.documentElement.lang = activeLocale;
+  document.title = 'FractalGalaxy — ' + tr('studio.workspace');
+  const direct = [
+    ['studio.material', '.controls h2'],
+    ['studio.slice', '.viewport-head h2'],
+    ['studio.point', '.inspector h2'],
+    ['studio.mass', '.inspector h2:nth-of-type(2)'],
+    ['studio.heading', '.section-heading h2'],
+    ['studio.subtitle', '.section-heading p'],
+    ['studio.interface', '.lab-controls h3'],
+    ['studio.reference', '#referenceView', '.view-label strong'],
+    ['studio.reference.help', '#referenceView', '.view-label span'],
+    ['studio.deformed', '#deformedView', '.view-label strong'],
+    ['studio.deformed.help', '#deformedView', '.view-label span'],
+    ['studio.cameraReset', '#resetCamera'],
+    ['studio.reset', '#reset'],
+    ['studio.picking.help', '#studioPickingHelp'],
+    ['studio.helpLive', '.lab-controls .note:first-of-type'],
+    ['studio.helpDrag', '.lab-controls .note:nth-of-type(2)'],
+    ['studio.e0Help', '.viewport-head p'],
+    ['studio.footer', 'footer span'],
+    ['studio.inspector', '#studioInspectorHeading'],
+    ['studio.level', '#studioLevelLabel'],
+    ['studio.path', '#studioPathLabel'],
+    ['studio.face', '#studioFaceLabel'],
+    ['studio.parent', '#studioParent'],
+    ['studio.child', '#studioChildLabel'],
+    ['studio.status', '#studioDiagnosticsHeading'],
+    ['studio.language', '.studio-language span']
+  ];
+  for (const [key, selector, descendant] of direct) {
+    const el = descendant
+      ? document.querySelector(selector)?.closest('.geometry-view')?.querySelector(descendant)
+      : document.querySelector(selector);
+    if (el) replaceVisibleText(el, tr(key));
+  }
+  for (const [id,key] of Object.entries({
+    seed:'studio.seed',alpha:'studio.alpha',zSlice:'studio.z',
+    fixture:'studio.fixture',editD:'studio.editD',mode:'studio.mode',
+    interfaceSource:'studio.source',probeDepth:'studio.probeDepth',
+    faceAxis:'studio.axis',faceSide:'studio.side',
+    mediumA:'studio.mediumA',mediumB:'studio.mediumB',
+    deformBlend:'studio.deform',rndAmplitude:'studio.rnd',
+    smoothingWeight:'studio.smooth',influenceMagnitude:'studio.influence',
+    influenceThreshold:'studio.threshold',influenceCompliance:'studio.compliance',
+    showTriangulation:'studio.triangulation'
+  })) {
+    const el = $(id).closest('label').querySelector('span');
+    replaceVisibleText(el, tr(key));
+  }
+  const readoutKeys = ['cell','neighbor','a','b','refineA','refineB','octA','octB',
+    'children','proven','unresolved','visited','impact','offset','decision'];
+  const names = document.querySelectorAll('.lab-readout > div > span');
+  readoutKeys.forEach((key,i) => replaceVisibleText(names[i], tr('studio.readout.'+key)));
+  const modeOptions = controls.mode.options;
+  modeOptions[0].textContent = tr('studio.mode.matter');
+  modeOptions[1].textContent = tr('studio.mode.owners');
+  lab.source.options[0].textContent = tr('studio.source.live');
+  lab.source.options[1].textContent = tr('studio.source.manual');
+  document.querySelectorAll('.studio-view-modes button').forEach(button => {
+    button.textContent = tr('studio.view.' + button.dataset.view);
+  });
+  document.querySelectorAll('.explain-strip div span').forEach((span,index) => {
+    replaceVisibleText(span, tr('studio.explain'+(index+1)));
+  });
+  const labels = document.querySelectorAll('.inspector dt');
+  if (labels.length >= 5) {
+    replaceVisibleText(labels[0], tr('studio.coordinate'));
+    replaceVisibleText(labels[1], tr('studio.path'));
+    replaceVisibleText(labels[2], tr('studio.generatorState'));
+    replaceVisibleText(labels[4], tr('studio.owner'));
+  }
+  $('studioLanguage').setAttribute('aria-label', tr('studio.language'));
+  const probe = currentProbeContext();
+  syncStudioSelection(probe);
+}
+
+studioUi = createStudioWorkspace();
 renderMaterialView();
+applyStudioLocale();
+
