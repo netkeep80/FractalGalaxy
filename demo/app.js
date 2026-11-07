@@ -514,15 +514,32 @@ function regionalSamplingTargetDepth(probe, extraction) {
   return Math.max(proofDepth, persistedDepth, previewDepth, editableDepth);
 }
 
+function topologyDisplayDepth() {
+  return Math.min(REGIONAL_MAX_DEPTH, currentProbeContext().depth + 1);
+}
+
+function topologySpatialStep() {
+  return 2 / (2 ** topologyDisplayDepth());
+}
+
+function topologyLineSubdivisions(a,b) {
+  const span=Math.max(...a.map((value,index)=>Math.abs(b[index]-value)));
+  return Math.max(1,Math.round(span/topologySpatialStep()));
+}
+
 function drawCanonicalTopologyLines(
   context,
   canvasElement,
   lines,
-  { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1, subdivisions = 2, dash = [] } = {}
+  { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1, subdivisions = null, dash = [] } = {}
 ) {
+  const topologyLines=lines.map(line=>({
+    ...line,
+    subdivisions:subdivisions??topologyLineSubdivisions(line.a,line.b)
+  }));
   const topology = buildCanonicalTopologyLines({
-    lines,
-    subdivisions,
+    lines:topologyLines,
+    subdivisions:subdivisions??1,
     deformation: deformed ? currentVertexDeformation() : point => point
   });
   context.save();
@@ -554,9 +571,11 @@ function drawLine(context, canvasElement, a, b, { deformed = false, stroke = 'rg
 }
 
 function drawCubeGrid(context, canvasElement, deformed) {
+  const samplingDepth=topologyDisplayDepth();
+  const rootSegments=Math.max(4,2**samplingDepth);
   const grid=buildCanonicalTopologyGrid({
     steps:4,
-    curveSubdivisions:2,
+    curveSubdivisions:rootSegments/4,
     deformation:deformed?currentVertexDeformation():point=>point
   });
   context.strokeStyle='rgba(121,150,174,.30)';
@@ -590,10 +609,8 @@ function drawBox(
       if (diff === 1) lines.push({a:corners[i],b:corners[j]});
     }
   }
-  const edge = bounds.max[0] - bounds.min[0];
-  const subdivisions = Math.max(2, Math.round(edge * 4));
   drawCanonicalTopologyLines(context, canvasElement, lines, {
-    deformed, stroke, width, subdivisions, dash
+    deformed, stroke, width, dash
   });
 }
 
@@ -673,8 +690,7 @@ function drawSelectedFace(context, canvasElement, deformed) {
   }
   drawCanonicalTopologyLines(context, canvasElement, selectedGridLines, {
     deformed,
-    stroke,
-    subdivisions:Math.max(2, 8 / (2 ** probe.depth))
+    stroke
   });
 
   const incident = incidentOctantsForFace(axis, side);

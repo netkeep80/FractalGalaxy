@@ -785,6 +785,20 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     assert.ok(diagnostic.lengths.every(length=>length>2),'every selected topology line must contain canonical intermediate vertices');
     assert.equal(diagnostic.central,2,'the two central selected topology lines must share the canonical crossing');
 
+    // S3-REAUD-01: root and fine selected grids share the exact depth-4 crossing.
+    await setCheckbox('showReferenceGrid',true);
+    await setControl('rndAmplitude','.12','input');
+    await setControl('smoothingWeight','.2','input');
+    await cdp.evaluate('(() => {const e=document.getElementById("studioChildOctant");for(const branch of ["7","6","7"]){e.value=branch;document.getElementById("studioChildButton").click();}})()');
+    assert.equal(await cdp.evaluate('document.getElementById("studioPath").textContent'),'/7/6/7');
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const deepCrossing=await cdp.evaluate("(() => {const p=__fgS3Audit.project(currentVertexDeformation()([.5,.875,1]));const strokes=globalThis.__fgS3Strokes??[];const root=strokes.filter(path=>/121,\\s*150,\\s*174/.test(path.style));const selected=strokes.filter(path=>/102,\\s*235,\\s*190/.test(path.style));const nearest=paths=>Math.min(...paths.flatMap(path=>path.points.map(point=>Math.hypot(point[0]-p.x,point[1]-p.y))));return{rootCount:root.length,selectedCount:selected.length,rootDistance:nearest(root),selectedDistance:nearest(selected)};})()");
+    assert.ok(deepCrossing.rootCount>0&&deepCrossing.selectedCount>0);
+    assert.ok(deepCrossing.rootDistance<1e-7,'root topology grid must include the fine canonical crossing');
+    assert.ok(deepCrossing.selectedDistance<1e-7,'selected fine topology grid must include the same canonical crossing');
+    await cdp.evaluate('document.getElementById("studioParent").click();document.getElementById("studioParent").click();document.getElementById("studioParent").click()');
+    await setCheckbox('showReferenceGrid',false);
+
     // S3-AUD-04: unresolved perimeter and proven boundary use one target-depth sampling contract.
     await setControl('interfaceSource','procedural');await setControl('fixture','height');
     await setControl('rndAmplitude','.12','input');await setControl('smoothingWeight','.2','input');

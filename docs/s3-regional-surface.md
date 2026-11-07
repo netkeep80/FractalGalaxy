@@ -67,3 +67,10 @@ The full S3 adversarial audit exposed four integration gaps and one contract ove
 - The 1:4 seam helper now enforces the stated E0 octree contract: dyadic size, global-domain bounds and grid alignment, in addition to cubic shape and exact 2×2 coverage.
 
 The browser acceptance captures actual triangle fill paths and actual diagnostic/gap stroke vertices. Removing Regional fill or reintroducing endpoint-only diagnostic chords is therefore observable by the normal suite.
+
+
+### Cross-depth topology intersection identity
+
+Displayed topology families now share a spatial sampling contract derived from the currently selected octree depth. Root-grid lines, selected-face lines and hierarchy boxes therefore include the same dyadic reference intersections when they are simultaneously visible. In addition, the generic topology-line builder promotes pairwise segment intersections/endpoints to mandatory canonical samples, so a common crossing is represented by one canonical key/index even when the caller's uniform sampling schedule would otherwise skip it.
+
+The topology-grid API keeps its previously supported independent parameter ranges: `steps=1..32` and `curveSubdivisions=1..16`, including the maximum 512 segments per grid line.

@@ -64,3 +64,29 @@ test('S3-D selected diagnostic lines share the exact nonlinear canonical crossin
   const chordMid=endpoints[0].map((value,i)=>(value+endpoints.at(-1)[i])/2);
   assert.notDeepEqual(geometry.vertices[center].position,chordMid);
 });
+
+
+test('S3-D root and fine topology lines include their common canonical crossing even with different schedules',()=>{
+  const geometry=buildCanonicalTopologyLines({
+    lines:[
+      {a:[.5,-1,1],b:[.5,1,1],name:'root'},
+      {a:[.25,.875,1],b:[.5,.875,1],name:'fine'}
+    ],
+    subdivisions:8,
+    deformation:point=>cubeToSphereDeformation(point)
+  });
+  const crossing=geometry.vertices.findIndex(vertex=>vertex.key==='0.5,0.875,1');
+  assert.ok(crossing>=0);
+  for(const line of geometry.lines){
+    assert.ok(line.vertexIndices.includes(crossing),line.name+' omits the shared canonical intersection');
+  }
+});
+
+test('S3-D topology grid preserves the previously supported sampling capacity',()=>{
+  const medium=buildCanonicalTopologyGrid({steps:16,curveSubdivisions:7});
+  assert.equal(medium.stats.segmentsPerLine,112);
+  assert.equal(medium.lines.length,204);
+  const maximum=buildCanonicalTopologyGrid({steps:32,curveSubdivisions:16});
+  assert.equal(maximum.stats.segmentsPerLine,512);
+  assert.equal(maximum.lines.length,396);
+});
