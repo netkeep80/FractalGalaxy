@@ -501,12 +501,16 @@ function makeCameraProjector(canvasElement) {
   const cp=Math.cos(camera.pitch),sp=Math.sin(camera.pitch);
   const scale=Math.min(canvasElement.width,canvasElement.height)*0.30*camera.zoom;
   const cx=canvasElement.width/2,cyCanvas=canvasElement.height/2;
-  return point=>{
+  return (point,out=null)=>{
     const x=point[0],y=point[1],z=point[2];
     const x1=x*cy+z*sy;
     const z1=-x*sy+z*cy;
     const y1=y*cp-z1*sp;
-    return {x:cx+x1*scale,y:cyCanvas-y1*scale,depth:y*sp+z1*cp};
+    const result=out??{};
+    result.x=cx+x1*scale;
+    result.y=cyCanvas-y1*scale;
+    result.depth=y*sp+z1*cp;
+    return result;
   };
 }
 function rotateProject(point,canvasElement){
@@ -954,7 +958,8 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   paintProvenSurface(context,mesh,project,{
     deformed,
     stats:visibilityStats,
-    visibilityCacheKey:camera.yaw+'|'+camera.pitch
+    visibilityCacheKey:camera.yaw+'|'+camera.pitch,
+    reusePrepared:true
   });
   studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;
   studioPerformance.lastVisibilityCandidates=visibilityStats.candidatePairs??0;

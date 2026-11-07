@@ -45,17 +45,17 @@ function trianglesMayOverlapArea(a,b){
   }
   return true;
 }
-function depthPlane(points){
+function depthPlane(points,out=null){
   const a=points[0],b=points[1],c=points[2];
   const abx=b.x-a.x,aby=b.y-a.y,acz=b.depth-a.depth;
   const acx=c.x-a.x,acy=c.y-a.y,bcz=c.depth-a.depth;
   const determinant=abx*acy-acx*aby;
   if(Math.abs(determinant)<1e-12)return null;
-  return {
-    x:a.x,y:a.y,depth:a.depth,
-    dx:(acz*acy-bcz*aby)/determinant,
-    dy:(abx*bcz-acx*acz)/determinant
-  };
+  const plane=out??{};
+  plane.x=a.x;plane.y=a.y;plane.depth=a.depth;
+  plane.dx=(acz*acy-bcz*aby)/determinant;
+  plane.dy=(abx*bcz-acx*acz)/determinant;
+  return plane;
 }
 function depthAtPlane(plane,x,y){
   return plane.depth+plane.dx*(x-plane.x)+plane.dy*(y-plane.y);
@@ -229,7 +229,7 @@ function intervalQuery(node,minY,maxY,visit,counters){
   if(node.minY<maxY)intervalQuery(node.right,minY,maxY,visit,counters);
 }
 function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
-  const outgoing=triangles.map(()=>new Set());
+  const outgoing=new Array(triangles.length);
   const incoming=new Int32Array(triangles.length);
   const allPairs=triangles.length*(triangles.length-1)/2;
   let candidatePairs=0,relations=0,edges=0;
@@ -249,11 +249,10 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
     const from=relation>0?second:first,to=relation>0?first:second;
-    if(!outgoing[from].has(to)){
-      outgoing[from].add(to);
-      incoming[to]++;
-      edges++;
-    }
+    if(outgoing[from])outgoing[from].push(to);
+    else outgoing[from]=[to];
+    incoming[to]++;
+    edges++;
   };
 
   if(broadPhase){
@@ -322,7 +321,8 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     }
     remaining[chosen]=0;
     order.push(chosen);
-    for(const to of outgoing[chosen]){
+    const outgoingList=outgoing[chosen];
+    if(outgoingList)for(const to of outgoingList){
       orderOperations++;
       incoming[to]--;
       if(incoming[to]===0&&remaining[to]){
@@ -388,6 +388,7 @@ export function proofGapBoundaryVertices({
 }
 const meshStyleCache=new WeakMap();
 const meshVisibilityOrderCache=new WeakMap();
+const meshPreparedFrameCache=new WeakMap();
 function cachedVisibilityOrder(mesh,key){
   if(key===null||key===undefined)return null;
   return meshVisibilityOrderCache.get(mesh)?.get(String(key))??null;
@@ -411,45 +412,104 @@ function triangleStyles(mesh){
   meshStyleCache.set(mesh,cached);
   return cached;
 }
-export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=true,stats=null,visibilityCacheKey=null}={}){
+function createPreparedFrame(mesh){
+  const projectedVertices=mesh.vertices.map(()=>({x:0,y:0,depth:0}));
+  const styles=triangleStyles(mesh);
+  const prepared=mesh.triangles.map((triangle,index)=>{
+    const points=triangle.indices.map(i=>projectedVertices[i]);
+    const style=styles[index];
+    return {
+      index,
+      points,
+      bounds:{minX:0,maxX:0,minY:0,maxY:0},
+      depth:0,
+      depthPlane:null,
+      depthPlaneStorage:{x:0,y:0,depth:0,dx:0,dy:0},
+      light:style?.light??0,
+      fill:style?.fill??null
+    };
+  });
+  return {projectedVertices,prepared};
+}
+function preparedFrame(mesh){
+  let frame=meshPreparedFrameCache.get(mesh);
+  if(!frame){frame=createPreparedFrame(mesh);meshPreparedFrameCache.set(mesh,frame);}
+  return frame;
+}
+function projectInto(project,point,out){
+  const value=project(point,out);
+  const source=value??out;
+  out.x=source.x;out.y=source.y;out.depth=source.depth;
+  if(!Number.isFinite(out.x)||!Number.isFinite(out.y)||!Number.isFinite(out.depth)){
+    throw new Error('invalid projection');
+  }
+}
+export function prepareProofTriangles(mesh,project,{
+  deformed=false,broadPhase=true,stats=null,visibilityCacheKey=null,reusePrepared=false
+}={}){
   if(!mesh||!Array.isArray(mesh.vertices)||!Array.isArray(mesh.triangles)
     ||typeof project!=='function')throw new Error('proven mesh and projection required');
   const spatialVertices=mesh.vertices.map(vertex=>{
     if(!vertex)throw new Error('missing canonical mesh vertex');
     return deformed?vertex.position:vertex.reference;
   });
-  const projectedVertices=spatialVertices.map(point=>{
-    const projected=project(point);
-    if(!Number.isFinite(projected.x)||!Number.isFinite(projected.y)||!Number.isFinite(projected.depth)){
-      throw new Error('invalid projection');
-    }
-    return projected;
-  });
   const styles=triangleStyles(mesh);
-  const prepared=mesh.triangles.map((triangle,index)=>{
-    if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
-    const points=triangle.indices.map(i=>projectedVertices[i]);
-    let style=styles[index];
-    if(!style){
-      const spatial=triangle.indices.map(i=>spatialVertices[i]);
-      const light=triangleLight(triangleNormal(spatial));
-      const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
-      style={light,fill:'rgb('+rgb.join(',')+')'};
+  let projectedVertices,prepared;
+  if(reusePrepared){
+    const frame=preparedFrame(mesh);
+    projectedVertices=frame.projectedVertices;
+    prepared=frame.prepared;
+    for(let i=0;i<spatialVertices.length;i++)projectInto(project,spatialVertices[i],projectedVertices[i]);
+    for(let index=0;index<mesh.triangles.length;index++){
+      const triangle=mesh.triangles[index],record=prepared[index];
+      if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
+      const p0=record.points[0],p1=record.points[1],p2=record.points[2],bounds=record.bounds;
+      bounds.minX=Math.min(p0.x,p1.x,p2.x);bounds.maxX=Math.max(p0.x,p1.x,p2.x);
+      bounds.minY=Math.min(p0.y,p1.y,p2.y);bounds.maxY=Math.max(p0.y,p1.y,p2.y);
+      record.depth=(p0.depth+p1.depth+p2.depth)/3;
+      record.depthPlane=depthPlane(record.points,record.depthPlaneStorage);
+      let style=styles[index];
+      if(!style){
+        const spatial=triangle.indices.map(i=>spatialVertices[i]);
+        const light=triangleLight(triangleNormal(spatial));
+        const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
+        style={light,fill:'rgb('+rgb.join(',')+')'};
+      }
+      record.light=style.light;record.fill=style.fill;
     }
-    return {
-      index,points,
-      bounds:{
-        minX:Math.min(points[0].x,points[1].x,points[2].x),
-        maxX:Math.max(points[0].x,points[1].x,points[2].x),
-        minY:Math.min(points[0].y,points[1].y,points[2].y),
-        maxY:Math.max(points[0].y,points[1].y,points[2].y)
-      },
-      depth:(points[0].depth+points[1].depth+points[2].depth)/3,
-      depthPlane:depthPlane(points),
-      light:style.light,
-      fill:style.fill
-    };
-  });
+  }else{
+    projectedVertices=spatialVertices.map(point=>{
+      const projected=project(point);
+      if(!Number.isFinite(projected.x)||!Number.isFinite(projected.y)||!Number.isFinite(projected.depth)){
+        throw new Error('invalid projection');
+      }
+      return projected;
+    });
+    prepared=mesh.triangles.map((triangle,index)=>{
+      if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
+      const points=triangle.indices.map(i=>projectedVertices[i]);
+      let style=styles[index];
+      if(!style){
+        const spatial=triangle.indices.map(i=>spatialVertices[i]);
+        const light=triangleLight(triangleNormal(spatial));
+        const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
+        style={light,fill:'rgb('+rgb.join(',')+')'};
+      }
+      return {
+        index,points,
+        bounds:{
+          minX:Math.min(points[0].x,points[1].x,points[2].x),
+          maxX:Math.max(points[0].x,points[1].x,points[2].x),
+          minY:Math.min(points[0].y,points[1].y,points[2].y),
+          maxY:Math.max(points[0].y,points[1].y,points[2].y)
+        },
+        depth:(points[0].depth+points[1].depth+points[2].depth)/3,
+        depthPlane:depthPlane(points),
+        light:style.light,
+        fill:style.fill
+      };
+    });
+  }
   const cachedOrder=cachedVisibilityOrder(mesh,visibilityCacheKey);
   if(cachedOrder&&cachedOrder.length===prepared.length){
     if(stats&&typeof stats==='object')Object.assign(stats,{

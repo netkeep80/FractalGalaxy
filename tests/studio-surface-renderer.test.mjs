@@ -259,3 +259,33 @@ test('PERF zoom-equivalent projection reuses exact painter order cache while yaw
  assert.equal(statsRotated.visibilityCacheHit,false);
  assert.ok(statsRotated.candidatePairs>0);
 });
+
+
+test('PERF reusable prepared-frame path is behaviorally identical across changing camera projections',()=>{
+ const fixture={
+  vertices:[
+   {reference:[0,0,0],position:[0,0,0]},
+   {reference:[1,0,.1],position:[1,0,.1]},
+   {reference:[0,1,.2],position:[0,1,.2]},
+   {reference:[.2,.2,.8],position:[.2,.2,.8]},
+   {reference:[1.2,.2,.7],position:[1.2,.2,.7]},
+   {reference:[.2,1.2,.9],position:[.2,1.2,.9]}
+  ],
+  triangles:[
+   {indices:[0,1,2],decision:'PRESENT',normal:[0,-.1,1]},
+   {indices:[3,4,5],decision:'PRESENT',normal:[0,.1,1]}
+  ],unresolved:[]
+ };
+ const projector=(scale,skew)=>((p,out=null)=>{
+  const result=out??{};
+  result.x=(p[0]+p[2]*skew)*scale;
+  result.y=(p[1]-p[2]*skew*.3)*scale;
+  result.depth=p[2]-p[0]*skew*.05;
+  return result;
+ });
+ for(const [scale,skew] of [[100,.1],[125,-.17],[80,.31]]){
+  const normal=prepareProofTriangles(fixture,projector(scale,skew),{broadPhase:true}).map(t=>t.index);
+  const reusable=prepareProofTriangles(fixture,projector(scale,skew),{broadPhase:true,reusePrepared:true}).map(t=>t.index);
+  assert.deepEqual(reusable,normal);
+ }
+});
