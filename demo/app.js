@@ -87,7 +87,7 @@ async function renderProjectVersion(){
     if(!response.ok)throw new Error('HTTP '+response.status);
     const payload=await response.json();
     const projectVersion=payload?.version;
-    if(!/^\\d+\\.\\d+\\.\\d+$/.test(projectVersion??'')){
+    if(!/^\d+\.\d+\.\d+$/.test(projectVersion??'')){
       throw new Error('invalid project version');
     }
     versionBadge.dataset.projectVersion=projectVersion;
