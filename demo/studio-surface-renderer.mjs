@@ -107,19 +107,96 @@ function heapPop(heap,compare){
   }
   return root;
 }
+function intervalPriority(index){
+  let value=(index+1)>>>0;
+  value^=value>>>16;
+  value=Math.imul(value,0x7feb352d);
+  value^=value>>>15;
+  value=Math.imul(value,0x846ca68b);
+  value^=value>>>16;
+  return value>>>0;
+}
+function intervalKeyCompare(minY,index,node){
+  return minY-node.minY||index-node.index;
+}
+function intervalMax(node){
+  return node?node.subtreeMaxY:-Infinity;
+}
+function intervalUpdate(node){
+  if(node)node.subtreeMaxY=Math.max(node.maxY,intervalMax(node.left),intervalMax(node.right));
+  return node;
+}
+function intervalRotateLeft(node){
+  const right=node.right;
+  node.right=right.left;
+  right.left=intervalUpdate(node);
+  return intervalUpdate(right);
+}
+function intervalRotateRight(node){
+  const left=node.left;
+  node.left=left.right;
+  left.right=intervalUpdate(node);
+  return intervalUpdate(left);
+}
+function intervalInsert(node,item){
+  if(!node)return {
+    index:item.index,minY:item.minY,maxY:item.maxY,
+    priority:intervalPriority(item.index),subtreeMaxY:item.maxY,left:null,right:null
+  };
+  if(intervalKeyCompare(item.minY,item.index,node)<0){
+    node.left=intervalInsert(node.left,item);
+    if(node.left.priority<node.priority)node=intervalRotateRight(node);
+  }else{
+    node.right=intervalInsert(node.right,item);
+    if(node.right.priority<node.priority)node=intervalRotateLeft(node);
+  }
+  return intervalUpdate(node);
+}
+function intervalRemove(node,minY,index){
+  if(!node)return null;
+  const compare=intervalKeyCompare(minY,index,node);
+  if(compare<0)node.left=intervalRemove(node.left,minY,index);
+  else if(compare>0)node.right=intervalRemove(node.right,minY,index);
+  else{
+    if(!node.left)return node.right;
+    if(!node.right)return node.left;
+    if(node.left.priority<node.right.priority){
+      node=intervalRotateRight(node);
+      node.right=intervalRemove(node.right,minY,index);
+    }else{
+      node=intervalRotateLeft(node);
+      node.left=intervalRemove(node.left,minY,index);
+    }
+  }
+  return intervalUpdate(node);
+}
+function intervalQuery(node,minY,maxY,visit,counters){
+  if(!node)return;
+  counters.indexVisits++;
+  if(node.left&&node.left.subtreeMaxY>minY)intervalQuery(node.left,minY,maxY,visit,counters);
+  if(node.minY<maxY&&node.maxY>minY)visit(node.index);
+  if(node.minY<maxY)intervalQuery(node.right,minY,maxY,visit,counters);
+}
 function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
   const outgoing=triangles.map(()=>new Set());
   const incoming=new Int32Array(triangles.length);
   const allPairs=triangles.length*(triangles.length-1)/2;
   let candidatePairs=0,relations=0,edges=0;
+  let broadPhaseSortComparisons=0,broadPhaseExpireOperations=0;
+  const broadPhaseCounters={indexVisits:0};
 
   const comparePair=(a,b)=>{
+    // Exact narrow-phase must always receive a pair in the same canonical
+    // original-triangle order as exhaustive enumeration. This avoids
+    // floating-point asymmetry when AABB sweep order differs from input order.
+    const first=triangles[a].index<=triangles[b].index?a:b;
+    const second=first===a?b:a;
     candidatePairs++;
-    const relation=projectedDepthRelation(triangles[a],triangles[b]);
+    const relation=projectedDepthRelation(triangles[first],triangles[second]);
     if(!relation)return;
     relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
-    const from=relation>0?b:a,to=relation>0?a:b;
+    const from=relation>0?second:first,to=relation>0?first:second;
     if(!outgoing[from].has(to)){
       outgoing[from].add(to);
       incoming[to]++;
@@ -128,26 +205,31 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
   };
 
   if(broadPhase){
-    const sorted=triangles.map((_,index)=>index).sort((a,b)=>
-      triangles[a].bounds.minX-triangles[b].bounds.minX||
-      triangles[a].bounds.maxX-triangles[b].bounds.maxX||
-      triangles[a].index-triangles[b].index
-    );
-    const active=[];
+    const sorted=triangles.map((_,index)=>index).sort((a,b)=>{
+      broadPhaseSortComparisons++;
+      return triangles[a].bounds.minX-triangles[b].bounds.minX||
+        triangles[a].bounds.maxX-triangles[b].bounds.maxX||
+        triangles[a].index-triangles[b].index;
+    });
+    const expiry=[];
+    const expiryCompare=(a,b)=>a.maxX-b.maxX||a.index-b.index;
+    let yRoot=null;
     for(const index of sorted){
       const current=triangles[index];
-      let write=0;
-      for(let read=0;read<active.length;read++){
-        const otherIndex=active[read];
-        const other=triangles[otherIndex];
-        // Zero-width/height bbox contact cannot produce positive-area triangle overlap.
-        if(other.bounds.maxX<=current.bounds.minX)continue;
-        active[write++]=otherIndex;
-        if(other.bounds.maxY<=current.bounds.minY||current.bounds.maxY<=other.bounds.minY)continue;
-        comparePair(otherIndex,index);
+      while(expiry.length&&expiry[0].maxX<=current.bounds.minX){
+        const expired=heapPop(expiry,expiryCompare);
+        broadPhaseExpireOperations++;
+        yRoot=intervalRemove(yRoot,triangles[expired.index].bounds.minY,expired.index);
       }
-      active.length=write;
-      active.push(index);
+      intervalQuery(
+        yRoot,current.bounds.minY,current.bounds.maxY,
+        otherIndex=>comparePair(otherIndex,index),
+        broadPhaseCounters
+      );
+      yRoot=intervalInsert(yRoot,{
+        index,minY:current.bounds.minY,maxY:current.bounds.maxY
+      });
+      heapPush(expiry,{index,maxX:current.bounds.maxX},expiryCompare);
     }
   }else{
     for(let a=0;a<triangles.length;a++)for(let b=a+1;b<triangles.length;b++)comparePair(a,b);
@@ -205,7 +287,11 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     edges,
     orderOperations,
     cycleBreaks,
-    broadPhase:Boolean(broadPhase)
+    broadPhase:Boolean(broadPhase),
+    broadPhaseSortComparisons,
+    broadPhaseIndexVisits:broadPhaseCounters.indexVisits,
+    broadPhaseExpireOperations,
+    broadPhaseOperations:broadPhaseSortComparisons+broadPhaseCounters.indexVisits+broadPhaseExpireOperations
   });
   return order.map(index=>triangles[index]);
 }

@@ -893,8 +893,26 @@ test('PERF camera-only regional interaction is cached, coalesced and sub-100ms',
 
     await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
     await cdp.until('Number(document.getElementById("studioMeshTriangles").textContent)>1000',true,'regional mesh ready');
-    const before=await cdp.evaluate('__fractalGalaxyPerformance.snapshot()');
 
+    const checksum=id=>cdp.evaluate('(()=>{const c=document.getElementById('+JSON.stringify(id)+'),d=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let h=2166136261>>>0;for(let i=0;i<d.length;i+=97){h^=d[i];h=Math.imul(h,16777619)>>>0;}return h;})()');
+
+    // FG-PERF-001: a hidden viewport must be repainted from the current shared camera when revealed.
+    await cdp.evaluate('document.querySelector("button[data-view=reference]").click()');
+    const hiddenBefore=await checksum('deformedView');
+    const switchBefore=await cdp.evaluate('__fractalGalaxyPerformance.snapshot()');
+    await cdp.evaluate('(async()=>{const canvas=document.getElementById("referenceView");canvas.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:-80,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);})()');
+    const hiddenAfterCamera=await checksum('deformedView');
+    assert.equal(hiddenAfterCamera,hiddenBefore,'hidden deformed viewport must stay untouched while reference-only view is painted');
+    await cdp.evaluate('document.querySelector("button[data-view=deformed]").click()');
+    await cdp.evaluate('new Promise(requestAnimationFrame)');
+    const revealed=await checksum('deformedView');
+    assert.notEqual(revealed,hiddenBefore,'revealed viewport must repaint using the current camera, not expose a stale frame');
+    const switchAfter=await cdp.evaluate('__fractalGalaxyPerformance.snapshot()');
+    assert.equal(switchAfter.fullBuilds,switchBefore.fullBuilds,'viewport switch must not rebuild world/proof state');
+    assert.equal(switchAfter.regionalExtractions,switchBefore.regionalExtractions);
+    assert.equal(switchAfter.regionalMeshAssemblies,switchBefore.regionalMeshAssemblies);
+
+    const before=await cdp.evaluate('__fractalGalaxyPerformance.snapshot()');
     const eventResult=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView");canvas.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);for(let i=0;i<24;i++){canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?6:-5,bubbles:true,cancelable:true}));}await new Promise(requestAnimationFrame);await new Promise(requestAnimationFrame);return __fractalGalaxyPerformance.snapshot();})()');
 
     assert.equal(eventResult.fullBuilds,before.fullBuilds,
@@ -907,12 +925,21 @@ test('PERF camera-only regional interaction is cached, coalesced and sub-100ms',
       '24 same-task camera events must coalesce to at most two view paints');
     assert.ok(eventResult.lastVisibilityAllPairs>0);
     assert.ok(eventResult.lastVisibilityCandidates*100<eventResult.lastVisibilityAllPairs,
-      'regional painter broad-phase must cut candidate pairs by >=100x: '+JSON.stringify(eventResult));
-    assert.ok(eventResult.lastViewMs<=100,
-      'camera-only redraw must meet <=100ms target, got '+eventResult.lastViewMs+'ms');
+      'regional painter narrow-phase must cut candidate pairs by >=100x: '+JSON.stringify(eventResult));
+    assert.ok(eventResult.lastVisibilityBroadPhaseOperations<eventResult.lastVisibilityAllPairs/20,
+      'reported broad-phase tree/sort work must remain far below all-pairs: '+JSON.stringify(eventResult));
+
+    // Independent event-to-frame timings: 20 distinct camera redraws, not one lucky lastViewMs sample.
+    const distribution=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<20;i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));samples.push(performance.now()-start);}const sorted=[...samples].sort((a,b)=>a-b);return{samples,p50:sorted[Math.floor(sorted.length*.5)],p95:sorted[Math.floor(sorted.length*.95)],max:sorted.at(-1),snapshot:__fractalGalaxyPerformance.snapshot()};})()');
+    assert.ok(distribution.p50<=100,'20-frame median camera latency must be <=100ms: '+JSON.stringify(distribution));
+    assert.ok(distribution.p95<=150,'camera p95 must remain bounded in CI: '+JSON.stringify(distribution));
+    assert.equal(distribution.snapshot.fullBuilds,before.fullBuilds);
+    assert.equal(distribution.snapshot.regionalExtractions,before.regionalExtractions);
+    assert.equal(distribution.snapshot.regionalMeshAssemblies,before.regionalMeshAssemblies);
+
     t.diagnostic('PERF_COUNTERS '+JSON.stringify({
       triangles:Number(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent')),
-      before,eventResult
+      before,eventResult,distribution
     }));
     assert.deepEqual(cdp.exceptions,[]);
   }finally{

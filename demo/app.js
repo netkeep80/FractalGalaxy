@@ -368,7 +368,11 @@ const studioPerformance={
   lastViewMs:0,
   lastVisibilityAllPairs:0,
   lastVisibilityCandidates:0,
-  lastVisibilityOrderOperations:0
+  lastVisibilityOrderOperations:0,
+  lastVisibilityBroadPhaseIndexVisits:0,
+  lastVisibilityBroadPhaseSortComparisons:0,
+  lastVisibilityBroadPhaseExpireOperations:0,
+  lastVisibilityBroadPhaseOperations:0
 };
 globalThis.__fractalGalaxyPerformance=Object.freeze({
   snapshot:()=>Object.freeze({...studioPerformance})
@@ -945,6 +949,10 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;
   studioPerformance.lastVisibilityCandidates=visibilityStats.candidatePairs??0;
   studioPerformance.lastVisibilityOrderOperations=visibilityStats.orderOperations??0;
+  studioPerformance.lastVisibilityBroadPhaseIndexVisits=visibilityStats.broadPhaseIndexVisits??0;
+  studioPerformance.lastVisibilityBroadPhaseSortComparisons=visibilityStats.broadPhaseSortComparisons??0;
+  studioPerformance.lastVisibilityBroadPhaseExpireOperations=visibilityStats.broadPhaseExpireOperations??0;
+  studioPerformance.lastVisibilityBroadPhaseOperations=visibilityStats.broadPhaseOperations??0;
   drawRegionalProofGaps(context,canvasElement,deformed);
 }
 function surfaceProofLabel(mesh){
@@ -1386,14 +1394,15 @@ function createStudioWorkspace() {
   });
 
   const buttons = [...views.querySelectorAll('[data-view]')];
-  const setMode = mode => {
+  const setMode = (mode,{redraw=true}={}) => {
     views.dataset.mode = mode;
     for (const button of buttons) {
       button.setAttribute('aria-pressed', String(button.dataset.view === mode));
     }
+    if(redraw)renderGeometryViews();
   };
   for (const button of buttons) button.addEventListener('click', () => setMode(button.dataset.view));
-  setMode('reference');
+  setMode('reference',{redraw:false});
   const renderButtons=[...views.querySelectorAll('button[data-surface-mode]')];
   const setSurfaceMode=mode=>{
     studioSurfaceMode=mode;
@@ -1414,7 +1423,7 @@ function createStudioWorkspace() {
     button.setAttribute('aria-pressed',String(button.dataset.surfaceMode==='surface'));
   }
   $('studioVertexEdit').addEventListener('change',()=>{
-    if($('studioVertexEdit').checked)setMode('deformed');
+    if($('studioVertexEdit').checked)setMode('deformed',{redraw:false});
     renderGeometryLab();
   });
   $('studioSplitRing').addEventListener('click',()=>{

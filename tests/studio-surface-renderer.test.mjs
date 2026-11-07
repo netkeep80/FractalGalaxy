@@ -142,3 +142,86 @@ test('PERF broad-phase preserves exhaustive visibility order on overlapping adve
  const exhaustive=prepareProofTriangles(adversarial,project,{broadPhase:false}).map(t=>t.index);
  assert.deepEqual(optimized,exhaustive);
 });
+
+
+test('PERF audit regression: broad-phase preserves exhaustive order for large-coordinate two-triangle counterexample',()=>{
+ const positions=[
+  [999999999.3875558,1000000002.759836,1.3472459302283823],
+  [1000000001.1211773,1000000002.598229,1.8246840462088585],
+  [999999999.4271184,1000000004.4934574,1.9026496233418584],
+  [999999998.4794582,1000000001.6353612,1.604054702911526],
+  [1000000000.7527015,1000000001.738683,1.6446096822619438],
+  [999999998.2234248,1000000003.9086045,1.5030118944123387]
+ ];
+ const fixture={
+  vertices:positions.map(position=>({reference:position,position})),
+  triangles:[
+   {indices:[0,1,2],decision:'PRESENT'},
+   {indices:[3,4,5],decision:'PRESENT'}
+  ],
+  unresolved:[]
+ };
+ const identity=([x,y,z])=>({x,y,depth:z});
+ const optimized=prepareProofTriangles(fixture,identity,{broadPhase:true}).map(t=>t.index);
+ const exhaustive=prepareProofTriangles(fixture,identity,{broadPhase:false}).map(t=>t.index);
+ assert.deepEqual(optimized,exhaustive);
+ assert.deepEqual(optimized,[1,0]);
+});
+
+test('PERF audit regression: 520 deterministic finite-coordinate scenes keep broad-phase identical to exhaustive',()=>{
+ let state=0x7f4a7c15;
+ const random=()=>{
+  state=(Math.imul(state,1664525)+1013904223)>>>0;
+  return state/0x100000000;
+ };
+ for(let scene=0;scene<520;scene++){
+  const count=2+(scene%7),positions=[],triangles=[];
+  const origin=scene%3===0?1e9:scene%3===1?-1e9:0;
+  for(let i=0;i<count;i++){
+   const cx=origin+(random()-.5)*6;
+   const cy=origin+(random()-.5)*6;
+   const z=(random()-.5)*4;
+   const sx=.2+random()*2.4,sy=.2+random()*2.4;
+   const base=positions.length;
+   positions.push(
+    [cx-sx,cy-sy,z+(random()-.5)*.2],
+    [cx+sx,cy-sy*.7,z+(random()-.5)*.2],
+    [cx-sx*.4,cy+sy,z+(random()-.5)*.2]
+   );
+   triangles.push({indices:[base,base+1,base+2],decision:'PRESENT'});
+  }
+  const fixture={vertices:positions.map(position=>({reference:position,position})),triangles,unresolved:[]};
+  const project=([x,y,z])=>({x,y,depth:z});
+  const optimized=prepareProofTriangles(fixture,project,{broadPhase:true}).map(t=>t.index);
+  const exhaustive=prepareProofTriangles(fixture,project,{broadPhase:false}).map(t=>t.index);
+  assert.deepEqual(optimized,exhaustive,'scene '+scene);
+ }
+});
+
+test('PERF interval broad-phase avoids hidden quadratic scan when X overlaps but Y is disjoint',()=>{
+ const count=6500,vertices=[],triangles=[];
+ for(let i=0;i<count;i++){
+  const base=vertices.length,y=i*10;
+  vertices.push(
+   {reference:[0,y,0],position:[0,y,0]},
+   {reference:[10,y,0],position:[10,y,0]},
+   {reference:[0,y+2,0],position:[0,y+2,0]}
+  );
+  triangles.push({indices:[base,base+1,base+2],decision:'PRESENT'});
+ }
+ const fixture={vertices,triangles,unresolved:[]},stats={};
+ const order=prepareProofTriangles(
+  fixture,
+  ([x,y,z])=>({x,y,depth:z}),
+  {broadPhase:true,stats}
+ );
+ assert.equal(order.length,count);
+ assert.equal(stats.candidatePairs,0);
+ assert.equal(stats.allPairs,count*(count-1)/2);
+ assert.ok(stats.broadPhaseIndexVisits<count*64,
+  'Y interval index must stay subquadratic: '+JSON.stringify(stats));
+ assert.ok(stats.broadPhaseOperations<stats.allPairs/50,
+  'broad-phase accounting must expose and bound actual index/sort work: '+JSON.stringify(stats));
+ assert.ok(stats.broadPhaseSortComparisons>0);
+ assert.ok(Number.isInteger(stats.broadPhaseExpireOperations));
+});
