@@ -505,3 +505,5 @@ export {
   worldGeometryOffsets, applyVertexInfluence, splitGeometryFractalRing,
   ringWorldTranslation, ringVertexWorldPosition, reparentRingPreservingGeometry
 } from './rings/interaction-hierarchy.mjs';
+
+export { assembleProvenSurfaceMesh } from './geometry/surface-mesh.mjs';
