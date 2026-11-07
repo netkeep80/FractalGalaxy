@@ -224,12 +224,12 @@ function updateLegend() {
       ['#43d5ff', tr('studio.legend.left')],
       ['#ffaf4a', tr('studio.legend.rightBottom')],
       ['#e15cff', tr('studio.legend.rightTop')],
-      ['#06101a', 'EMPTY']
+      ['#06101a', tr('studio.media.EMPTY')]
     ].map(([c,t]) => `<span style="--swatch:${c}">${t}</span>`).join('');
   } else {
     legend.innerHTML = [
-      ['#58d7a9', 'SOLID'],
-      ['#06101a', 'EMPTY']
+      ['#58d7a9', tr('studio.media.SOLID')],
+      ['#06101a', tr('studio.media.EMPTY')]
     ].map(([c,t]) => `<span style="--swatch:${c}">${t}</span>`).join('');
   }
 }
@@ -252,7 +252,8 @@ function updateMasses(model) {
 }
 
 function describeMatter(value) {
-  if (value.kind === 'SOLID') return `SOLID(${value.materialId}, ρ=${value.density})`;
+  if (value.kind === 'SOLID') return `${tr('studio.media.SOLID')}(${value.materialId}, ρ=${value.density})`;
+  if (value.kind === 'EMPTY') return tr('studio.media.EMPTY');
   return value.kind;
 }
 
@@ -310,21 +311,23 @@ function classificationFor(value) {
 }
 
 function mediumLabel(medium) {
-  if (medium === 'EMPTY') return 'EMPTY';
+  if (medium === 'EMPTY') return tr('studio.media.EMPTY');
   const match = /^SOLID:([^:]+):(.+)$/.exec(medium ?? '');
-  return match ? `${match[1]} ρ=${match[2]}` : String(medium);
+  if (!match) return String(medium);
+  const id = match[1].toUpperCase();
+  return `${id === 'ROCK' || id === 'ICE' ? tr('studio.media.' + id) : match[1]} ρ=${match[2]}`;
 }
 
 function classificationLabel(result) {
   const classification = result.classification ?? result;
   return classification.kind === 'HOMOGENEOUS'
-    ? `HOMOGENEOUS · ${mediumLabel(classification.medium)}`
-    : 'MIXED';
+    ? `${tr('studio.classification.homogeneous')} · ${mediumLabel(classification.medium)}`
+    : tr('studio.classification.mixed');
 }
 
 function refinementLabel(result) {
-  if (!result?.stats) return 'manual';
-  return `nodes=${result.stats.inspectedNodes}, depth=${result.stats.deepestDepth}`;
+  if (!result?.stats) return tr('studio.refinement.manual');
+  return `${tr('studio.refinement.nodes')}=${result.stats.inspectedNodes}, ${tr('studio.refinement.depth')}=${result.stats.deepestDepth}`;
 }
 
 function currentProbeContext() {
@@ -603,9 +606,9 @@ function drawGeometry(canvasElement, deformed) {
 }
 
 function describeInterface(result) {
-  if (result.kind === 'NONE') return `NONE · ${result.medium}`;
-  if (result.kind === 'PRESENT') return `PRESENT · ${result.leftMedium} ↔ ${result.rightMedium}`;
-  return 'REFINE · volume is MIXED';
+  if (result.kind === 'NONE') return `${tr('studio.interface.none')} · ${mediumLabel(result.medium)}`;
+  if (result.kind === 'PRESENT') return `${tr('studio.interface.present')} · ${mediumLabel(result.leftMedium)} ↔ ${mediumLabel(result.rightMedium)}`;
+  return tr('studio.interface.refine');
 }
 
 function renderGeometryLab() {
@@ -667,11 +670,11 @@ function renderGeometryLab() {
   lab.mediumB.disabled = live;
   $('probeDepthOut').value = String(probe.depth);
   $('selectedCell').textContent = '[' + pathA.join(',') + ']';
-  $('neighborCell').textContent = pathB ? '[' + pathB.join(',') + ']' : 'OUTSIDE → EMPTY';
+  $('neighborCell').textContent = pathB ? '[' + pathB.join(',') + ']' : `${tr('studio.outside')} → ${tr('studio.media.EMPTY')}`;
   $('classificationA').textContent = classificationLabel(aResult);
   $('classificationB').textContent = classificationLabel(bResult);
   $('refinementA').textContent = refinementLabel(aResult);
-  $('refinementB').textContent = bResult.outsideDomain ? 'outside domain' : refinementLabel(bResult);
+  $('refinementB').textContent = bResult.outsideDomain ? tr('studio.outside') : refinementLabel(bResult);
   $('incidentA').textContent = '[' + incidentA.join(', ') + ']';
   $('incidentB').textContent = '[' + incidentB.join(', ') + ']';
   $('surfacePatches').textContent = String(patches.length);
@@ -687,8 +690,8 @@ function renderGeometryLab() {
   $('complianceOut').value = Number(lab.influenceCompliance.value).toFixed(2);
   const impact = currentImpact();
   $('impactGate').textContent = impact.result.active
-    ? `ACTIVE · excess=${impact.result.excess.toFixed(3)}`
-    : 'BLOCKED';
+    ? `${tr('studio.impact.active')} · ${tr('studio.impact.excess')}=${impact.result.excess.toFixed(3)}`
+    : tr('studio.impact.blocked');
   $('impactOffset').textContent = '[' + impact.result.offset.map(value => value.toFixed(3)).join(', ') + ']';
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
@@ -697,7 +700,8 @@ function renderGeometryLab() {
       ? 'PRESENT'
       : 'NONE';
   const badge = $('interfaceBadge');
-  badge.textContent = finalKind;
+  badge.dataset.kind = finalKind;
+  badge.textContent = tr('studio.status.' + finalKind);
   badge.className = 'interface-badge ' + finalKind.toLowerCase();
 
   drawGeometry(referenceCanvas, false);
@@ -850,7 +854,7 @@ function createStudioWorkspace() {
     activeLocale = event.target.value;
     try { localStorage.setItem('fractalgalaxy.locale', activeLocale); } catch { /* private mode */ }
     applyStudioLocale();
-    updateLegend();
+    renderMaterialView();
   });
   return { views, inspector };
 }
@@ -991,6 +995,6 @@ function applyStudioLocale() {
 }
 
 studioUi = createStudioWorkspace();
-renderMaterialView();
 applyStudioLocale();
+renderMaterialView();
 
