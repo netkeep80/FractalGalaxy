@@ -157,3 +157,148 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
     await rm(temp,{recursive:true,force:true});
   }
 });
+
+
+test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limits and persistent language', {timeout:45000}, async t => {
+  const binary = chromeBinary();
+  if (!binary) {
+    if (process.env.CI) throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed'); return;
+  }
+  const temp = await mkdtemp(join(tmpdir(), 'fg-studio-acceptance-'));
+  let server, chrome;
+  try {
+    const web = await startServer();
+    server = web.server;
+    chrome = await startChrome(binary, temp);
+    const cdp = connectCdp(chrome.socket);
+    await cdp.send('Page.enable');
+    await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width:1600,height:900,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate', {url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))', true, 'workspace ready');
+
+    const inspect = () => cdp.evaluate('(() => ({path:document.getElementById("studioPath").textContent,level:Number(document.getElementById("studioLevel").textContent),face:document.getElementById("studioFace").textContent,material:document.getElementById("classificationA").textContent,probe:Number(document.getElementById("probeDepth").value),seed:document.getElementById("seed").value,mass:document.getElementById("massRoot").textContent}))()');
+    const click = async ({x,y}) => {
+      await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
+    };
+    const locateCanvas = async (id, u=0.5, v=0.5) => cdp.evaluate('(async () => {const el=document.getElementById('+JSON.stringify(id)+'); el.scrollIntoView({block:"center"}); await new Promise(resolve=>requestAnimationFrame(resolve)); const r=el.getBoundingClientRect(); return {x:r.left+r.width*'+u+',y:r.top+r.height*'+v+',width:el.width,height:el.height,over:document.elementFromPoint(r.left+r.width*'+u+',r.top+r.height*'+v+')===el};})()');
+    const browserHash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data; let h=2166136261; for(let i=0;i<a.length;i+=43)h=Math.imul(h^a[i],16777619); return h>>>0;})()');
+    const setControl = (id, value, type='change') => cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+'); el.value='+JSON.stringify(String(value))+'; el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+    const viewRect = await cdp.evaluate('(() => {const lab=document.querySelector(".lab-grid").getBoundingClientRect();const central=document.querySelector(".studio-views").getBoundingClientRect();const right=document.querySelector(".studio-inspector").getBoundingClientRect();return {lab:lab.x,central:central.x,centerRight:central.right,inspector:right.x,inspectorRight:right.right,viewportWidth:innerWidth};})()');
+    await t.test('workspace is columns: central view and inspector to the right within screen', () => {
+      assert.ok(viewRect.central > viewRect.lab);
+      assert.ok(viewRect.inspector >= viewRect.centerRight-2, JSON.stringify(viewRect));
+      assert.ok(viewRect.inspectorRight <= viewRect.viewportWidth+2, JSON.stringify(viewRect));
+    });
+
+    await t.test('real 3D click selects expected ray-hit cell, not just a syntactically valid address', async () => {
+      const hitPoint = await locateCanvas('referenceView');
+      assert.ok(hitPoint.over, 'pointer MUST target visible reference canvas in viewport');
+      const expected = await cdp.evaluate('(async()=>{const {pickReferenceCube}=await import("/studio-picking.mjs");const {addressForPoint}=await import("/src/fractal-matter.mjs");const el=document.getElementById("referenceView");const h=pickReferenceCube({x:el.width/2,y:el.height/2,width:el.width,height:el.height,camera:{yaw:-0.66,pitch:0.46,zoom:1}});const path=addressForPoint(h.inside,Number(document.getElementById("probeDepth").value)).path;return {path:"/"+path.join("/"),face:h.axis.toUpperCase()+(h.side===1?"+":"−")};})()');
+      const before = await inspect();
+      assert.notEqual(before.path, expected.path, 'precondition: click must change selection to falsify inert event handling');
+      await click(hitPoint);
+      assert.equal((await inspect()).path,expected.path);
+      assert.equal((await inspect()).face,expected.face);
+    });
+
+    await t.test('drag or outside click never silently changes selection', async () => {
+      const before = await inspect();
+      const hash = await browserHash();
+      const p = await locateCanvas('referenceView');
+      await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:p.x,y:p.y,button:'left',clickCount:1});
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+60,y:p.y+22,button:'left',buttons:1});
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x+60,y:p.y+22,button:'left',clickCount:1});
+      assert.equal((await inspect()).path,before.path);
+      assert.notEqual(await browserHash(),hash,'drag must change camera rendering');
+      const outside=await locateCanvas('referenceView',0.025,0.025);
+      assert.ok(outside.over,'outside-domain click still targets canvas');
+      await click(outside);
+      assert.equal((await inspect()).path,before.path);
+    });
+
+    await t.test('2D click updates canonical selection, E1 inspector and visible selection marker', async () => {
+      const p=await locateCanvas('view',0.18,0.28);
+      assert.ok(p.over,'2D click is on-screen and targets actual canvas');
+      const selectedBefore = await inspect();
+      const canvasBefore=await cdp.evaluate('document.getElementById("view").toDataURL()');
+      await click(p);
+      const expected = await cdp.evaluate('(async()=>{const {addressForPoint}=await import("/src/fractal-matter.mjs");const c=document.getElementById("view");const r=c.getBoundingClientRect();const x=-1+2*('+p.x+'-r.left)/r.width;const y=1-2*('+p.y+'-r.top)/r.height;const z=Number(document.getElementById("zSlice").value);return "/"+addressForPoint([x,y,z],Number(document.getElementById("probeDepth").value)).path.join("/");})()');
+      assert.notEqual(expected,selectedBefore.path,'precondition: 2D click changes octree cell');
+      assert.equal((await inspect()).path,expected);
+      assert.notEqual(await cdp.evaluate('document.getElementById("view").toDataURL()'),canvasBefore,'2D marker must redraw after 2D selection');
+    });
+
+    await t.test('parent, breadcrumb root and depth limit are enforced', async () => {
+      await cdp.evaluate('document.querySelector("#studioBreadcrumbs button[data-depth=\"0\"]").click()');
+      assert.equal((await inspect()).path,'/');
+      assert.equal((await inspect()).level,0);
+      assert.equal(await cdp.evaluate('document.getElementById("studioParent").disabled'),true);
+      await setControl('studioChildOctant','7');
+      await cdp.evaluate('document.getElementById("studioChildButton").click()');
+      assert.equal((await inspect()).path,'/7');
+      for (let i=0;i<3;i++) await cdp.evaluate('document.getElementById("studioChildButton").click()');
+      const atMax=await inspect();
+      assert.equal(atMax.level,4);
+      assert.equal(await cdp.evaluate('document.getElementById("studioChildButton").disabled'),true);
+      await cdp.evaluate('document.getElementById("studioChildButton").click()');
+      assert.equal((await inspect()).path,atMax.path);
+    });
+
+    await t.test('view modes keep same selection and camera representation', async () => {
+      const before=await inspect();
+      for (const mode of ['deformed','split','reference']) {
+        await cdp.evaluate('document.querySelector("[data-view='+JSON.stringify(mode)+']").click()');
+        assert.equal(await cdp.evaluate('document.querySelector(".studio-views").dataset.mode'),mode);
+        assert.equal((await inspect()).path,before.path);
+        assert.equal((await inspect()).mass,before.mass);
+        assert.equal(await cdp.evaluate('document.querySelector("[data-view='+JSON.stringify(mode)+']").getAttribute("aria-pressed")'),'true');
+      }
+    });
+
+    await t.test('independent material proof result: same medium NONE, distinct PRESENT, MIXED unresolved', async () => {
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','ROCK');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'NONE');
+      assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'0');
+      assert.equal(await cdp.evaluate('document.getElementById("unresolvedPatches").textContent'),'0');
+      await setControl('mediumB','EMPTY');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'PRESENT');
+      assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'1');
+      await setControl('mediumA','MIXED');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'REFINE');
+      assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'0');
+      assert.equal(await cdp.evaluate('document.getElementById("unresolvedPatches").textContent'),'1');
+      await setControl('interfaceSource','procedural');
+    });
+
+    await t.test('locale switches without material change and persists across page reload', async () => {
+      const before=await inspect();
+      const hash=await browserHash();
+      await setControl('studioLanguage','en');
+      assert.equal(await cdp.evaluate('document.documentElement.lang'),'en');
+      assert.equal(await cdp.evaluate('document.getElementById("studioInspectorHeading").textContent'),'Inspector');
+      assert.equal((await inspect()).path,before.path);
+      assert.equal((await inspect()).mass,before.mass);
+      assert.equal((await inspect()).seed,before.seed);
+      assert.equal(await browserHash(),hash);
+      assert.equal(await cdp.evaluate('localStorage.getItem("fractalgalaxy.locale")'),'en');
+      await cdp.send('Page.reload',{ignoreCache:true});
+      await cdp.until('document.getElementById("studioLanguage")?.value', 'en','saved English choice');
+      assert.equal(await cdp.evaluate('document.getElementById("studioInspectorHeading").textContent'),'Inspector');
+      await setControl('studioLanguage','ru');
+      assert.equal(await cdp.evaluate('document.getElementById("studioInspectorHeading").textContent'),'Инспектор');
+      assert.equal(await cdp.evaluate('localStorage.getItem("fractalgalaxy.locale")'),'ru');
+    });
+
+    assert.deepEqual(cdp.exceptions,[], 'no JavaScript exceptions under acceptance scenarios');
+  } finally {
+    chrome?.socket.close();
+    chrome?.child.kill('SIGKILL');
+    if(server) await new Promise(resolve => server.close(resolve));
+    await rm(temp,{recursive:true,force:true});
+  }
+});
