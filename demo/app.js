@@ -844,8 +844,12 @@ function createStudioWorkspace() {
     core:{ringRecordState,ringIdsForPhysicalParent,validateWorldStore},
     onSelectOctree:path=>selectStudioPath(path),
     onSelectSplit:owner=>{
-      const z=Number(controls.zSlice.value);
+      // Split leaf means a currently materialized owner, not merely the XY region.
+      // For this E0 height fixture z=-0.75 is below the entire permitted height
+      // interval (including Γ alpha_neighbor in [-8,8]); it is also outside D[7].
+      const z=-0.75;
       selectedPoint=owner==='left'?[-0.5,0,z]:owner==='rb'?[0.5,-0.5,z]:[0.5,0.5,z];
+      controls.zSlice.value=String(z);
       controls.mode.value='owners';
       renderMaterialView();
     }
