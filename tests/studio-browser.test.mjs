@@ -433,6 +433,14 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.getElementById("studioVertexKey").textContent'),'0,0,1');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','subthreshold gesture must not materialize');
       assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),true);
+      const beforeCancel=await cdp.evaluate('document.getElementById("deformedView").toDataURL()');
+      await cdp.evaluate('document.getElementById("deformedView").addEventListener("pointerdown",e=>window.__fgCancelPointerId=e.pointerId,{once:true})');
+      await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+66,y:point.y+11,button:'left',buttons:1});
+      await cdp.evaluate('(() => {const c=document.getElementById("deformedView");c.dispatchEvent(new PointerEvent("pointercancel",{pointerId:window.__fgCancelPointerId,bubbles:true}));})()');
+      await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+66,y:point.y+11,button:'left',clickCount:1});
+      assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','cancelled gesture must not create a ring');
+      assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),beforeCancel,'cancelled gesture must restore preview');
       await moveDrag(70,-18);
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'1','active gesture must create FractalRing');
       assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),false);

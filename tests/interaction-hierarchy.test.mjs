@@ -128,3 +128,28 @@ test('second influence after split updates all shared copies and a subsequent ne
   const cold=loadPersistentWorldStore(serializePersistentWorldStore(nested),{resident:'none'});
   assert.deepEqual(worldGeometryOffsets(cold,source)['0,0,1'],expected);
 });
+
+test('splitting a previously unchanged neighboring ring retains shared effective vertex displaced in another ring',()=>{
+  const sourceA=src([6]),sourceB=src([7]),reference=[0,.5,.5];
+  let store=makeMemoryWorldStore({resident:'none',rings:[
+    {id:'neighbor',source:sourceB}
+  ]});
+  store=applyVertexInfluence(store,{
+    source:sourceA,reference,influence:[.12,0,-.04],threshold:0,compliance:1
+  }).store;
+  const canonical=[.37,.62,.8];
+  const before=worldGeometryOffsets(store,src([]))['0,0.5,0.5'];
+  assert.ok(before);
+  assert.equal(store.records.neighbor.overrides.geometryVertexOffsets,undefined);
+  const result=splitGeometryFractalRing(store,'neighbor');
+  const after=worldGeometryOffsets(result.store,src([]))['0,0.5,0.5'];
+  assert.deepEqual(after,before);
+  const affected=result.created.filter(id=>
+    result.store.records[id].overrides.geometryVertexOffsets['0,0.5,0.5']
+  );
+  assert.ok(affected.length>0);
+  for(const id of affected){
+    assert.deepEqual(ringVertexWorldPosition(result.store,id,reference,canonical),
+      canonical.map((n,i)=>n+before[i]));
+  }
+});
