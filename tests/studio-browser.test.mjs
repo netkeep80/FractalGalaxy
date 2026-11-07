@@ -565,6 +565,43 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelector(".studio-views").dataset.mode'),'deformed');
       const point=await cdp.evaluate('(async()=>{const {referenceProjection}=await import("/studio-picking.mjs");const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);const r=c.getBoundingClientRect();const p=referenceProjection([0,0,1],{width:c.width,height:c.height,camera:{yaw:-.66,pitch:.46,zoom:1}});const x=r.left+p.x*r.width/c.width,y=r.top+p.y*r.height/c.height;return {x,y,over:document.elementFromPoint(x,y)===c};})()');
       assert.equal(point.over,true,'target must be on the visible actual deformed canvas');
+      await cdp.evaluate(`(() => {
+        window.__fgSurfaceFillPaths=[];
+        if(window.__fgSurfaceFillCaptureInstalled)return;
+        window.__fgSurfaceFillCaptureInstalled=true;
+        const proto=CanvasRenderingContext2D.prototype;
+        const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,fill=proto.fill;
+        proto.beginPath=function(){this.__fgSurfaceFillPath=[];return begin.call(this);};
+        proto.moveTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return move.call(this,x,y);};
+        proto.lineTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return line.call(this,x,y);};
+        proto.fill=function(...args){
+          if(this.canvas?.id==='deformedView'
+            &&this.__fgSurfaceFillPath?.length===3
+            &&String(this.fillStyle).startsWith('rgb(')){
+            window.__fgSurfaceFillPaths.push(this.__fgSurfaceFillPath.map(point=>[...point]));
+          }
+          return fill.apply(this,args);
+        };
+      })()`);
+      const captureFilledSurface=()=>cdp.evaluate(`(() => {
+        const count=Number(document.getElementById('studioMeshTriangles').textContent);
+        const paths=(window.__fgSurfaceFillPaths??[]).slice(-count)
+          .map(path=>path.map(([x,y])=>[Number(x.toFixed(9)),Number(y.toFixed(9))]));
+        const frequencies=new Map();
+        for(const path of paths)for(const point of path){
+          const key=point.join(',');
+          const entry=frequencies.get(key)??{point,count:0};
+          entry.count++;frequencies.set(key,entry);
+        }
+        const center=[...frequencies.values()].sort((a,b)=>b.count-a.count)[0]?.point??null;
+        return {paths,center};
+      })()`);
+      // Force one clean post-hook frame. The oracle records only the actual
+      // proven triangle fill paths, excluding axes, handles and frame strokes.
+      await cdp.evaluate('document.getElementById("resetCamera").click()');
+      const filledBeforeDrag=await captureFilledSurface();
+      assert.equal(filledBeforeDrag.paths.length,8,'baseline fill-only capture must contain exactly 8 proven triangles');
+      assert.ok(filledBeforeDrag.center,'baseline canonical center must be present in the filled mesh');
       const moveDrag=async(dx,dy)=>{
         await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
         await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+dx,y:point.y+dy,button:'left',buttons:1});
@@ -588,6 +625,14 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       await moveDrag(70,-18);
       assert.notEqual(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),meshBeforeDrag,
         'dragged canonical center must change filled surface pixels');
+      const filledAfterPersist=await captureFilledSurface();
+      assert.equal(filledAfterPersist.paths.length,8,'persisted fill-only capture must contain exactly 8 proven triangles');
+      assert.notDeepEqual(filledAfterPersist.paths,filledBeforeDrag.paths,
+        'post-release proven triangle fill must retain the persisted WorldStore displacement');
+      assert.ok(Math.hypot(
+        filledAfterPersist.center[0]-filledBeforeDrag.center[0],
+        filledAfterPersist.center[1]-filledBeforeDrag.center[1]
+      )>1,'persisted canonical center must move in the final fill, not only in preview/handle pixels');
       assert.equal(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent'),'8');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'1','active gesture must create FractalRing');
       assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),false);
@@ -600,6 +645,8 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length'),9);
       assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),deformedBeforeSplit,
         'split must not move canonical deformed vertex on screen');
+      assert.deepEqual((await captureFilledSurface()).paths,filledAfterPersist.paths,
+        'Split must preserve the final proven triangle fill geometry, not only the composite canvas');
       await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").click()');
       assert.ok(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length')>=2);
       await cdp.evaluate('document.getElementById("studioHierarchyTab_source").click()');
