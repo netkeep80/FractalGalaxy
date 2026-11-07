@@ -59,6 +59,8 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(workflow, /studio-i18n\.mjs/);
   assert.match(workflow, /studio-hierarchy\.mjs/);
   assert.match(workflow, /studio-tree\.mjs/);
+  assert.match(workflow, /studio-vertex-editor\.mjs/);
+  assert.match(app, /splitGeometryFractalRing/);
   assert.match(app,/createStudioHierarchyUI/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /studio\.outside/);

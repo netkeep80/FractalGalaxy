@@ -22,3 +22,11 @@ relations:
     target:
       kind: artifact
       path: "tests/interaction-hierarchy.test.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-vertex-editor.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-vertex-editor.test.mjs"

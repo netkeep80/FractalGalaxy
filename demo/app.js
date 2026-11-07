@@ -27,8 +27,16 @@ import {
   makeMemoryWorldStore,
   ringRecordState,
   ringIdsForPhysicalParent,
-  validateWorldStore
+  validateWorldStore,
+  makeProceduralRef,
+  applyVertexInfluence,
+  splitGeometryFractalRing,
+  ringVertexWorldPosition,
+  worldGeometryOffsets,
+  worldStoreStats,
+  geometryVertexOffsets
 } from './src/fractal-matter.mjs';
+import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from './studio-vertex-editor.mjs';
 import {createStudioHierarchyUI} from './studio-tree.mjs';
 import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
 import { localeFor, translate, validateTranslations } from './studio-i18n.mjs';
@@ -311,7 +319,10 @@ let drag = null;
 let studioUi = null;
 let studioTreeUi = null;
 // E0 material Split is not a FractalRing overlay. No persistent rings are invented for display.
-const demoWorldStore = makeMemoryWorldStore({resident:'none'});
+let demoWorldStore = makeMemoryWorldStore({resident:'none'});
+let selectedVertexReference=null;
+let activeImpactRingId=null;
+let lastInfluenceResult=null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 
 function classificationFor(value) {
@@ -394,18 +405,37 @@ function currentImpact() {
   return { reference, result };
 }
 
+function studioGeometrySource(path=currentProbeContext().pathA) {
+  return makeProceduralRef({
+    rootId:'studio-e0',address:path,
+    algorithmId:'e0',algorithmVersion:E0_VERSION
+  });
+}
+function persistentVertexOffsets() {
+  return worldGeometryOffsets(demoWorldStore,studioGeometrySource());
+}
+function plusOffsets(offsets,reference,delta) {
+  const key=referenceVertexKey(reference);
+  const existing=offsets[key]??[0,0,0];
+  offsets[key]=existing.map((v,i)=>v+delta[i]);
+}
 function currentVertexDeformation() {
-  const impact = currentImpact();
-  const interactionOffsets = impact.result.active
-    ? { [referenceVertexKey(impact.reference)]: impact.result.offset }
-    : {};
-
+  const impact=currentImpact();
+  const interactionOffsets={...persistentVertexOffsets()};
+  if(impact.result.active)plusOffsets(interactionOffsets,impact.reference,impact.result.offset);
+  if(drag?.kind==='vertex' && drag.influence) {
+    const preview=evaluateGeometryInfluence(drag.influence,{
+      threshold:Number(lab.influenceThreshold.value),
+      compliance:Number(lab.influenceCompliance.value)
+    });
+    if(preview.active)plusOffsets(interactionOffsets,drag.reference,preview.offset);
+  }
   return makeFractalVertexDeformation({
-    baseDeformation: baseGeometryDeformation,
-    seed: parseSeed(),
-    randomAmplitude: Number(lab.rndAmplitude.value),
-    smoothingWeight: Number(lab.smoothingWeight.value),
-    smoothingTarget: ({ basePosition }) => basePosition,
+    baseDeformation:baseGeometryDeformation,
+    seed:parseSeed(),
+    randomAmplitude:Number(lab.rndAmplitude.value),
+    smoothingWeight:Number(lab.smoothingWeight.value),
+    smoothingTarget:({basePosition})=>basePosition,
     interactionOffsets
   });
 }
@@ -594,6 +624,46 @@ function drawContextHierarchy(context, canvasElement, deformed) {
   }
 }
 
+function selectedFaceHandles() {
+  const probe=currentProbeContext();
+  return editableFaceVertices(probe.boundsA,probe.axis,probe.side);
+}
+function drawEditableVertices(context,canvasElement) {
+  if(!$('studioVertexEdit')?.checked)return;
+  const deformation=currentVertexDeformation();
+  for(const vertex of selectedFaceHandles()){
+    const projected=rotateProject(deformation(vertex.reference),canvasElement);
+    const selected=selectedVertexReference&&referenceVertexKey(selectedVertexReference)===vertex.key;
+    context.fillStyle=selected?'#ffe3a1':'#84d8fa';
+    context.strokeStyle=selected?'#ffad4b':'#123247';
+    context.lineWidth=2;
+    context.beginPath();
+    context.arc(projected.x,projected.y,selected?7:5,0,2*Math.PI);
+    context.fill();context.stroke();
+  }
+}
+function nearestEditableVertex(canvasElement,x,y) {
+  const deformation=currentVertexDeformation();
+  return pickFaceVertex({
+    x,y,vertices:selectedFaceHandles(),
+    project:reference=>rotateProject(deformation(reference),canvasElement),
+    tolerance:14
+  });
+}
+function updateVertexInspector() {
+  const state=$('studioVertexState');
+  if(!state)return;
+  const count=worldStoreStats(demoWorldStore).persisted;
+  $('studioRingCount').textContent=String(count);
+  $('studioVertexKey').textContent=selectedVertexReference?referenceVertexKey(selectedVertexReference):'—';
+  state.textContent=lastInfluenceResult===null
+    ? tr('studio.vertex.ready')
+    : lastInfluenceResult.active?tr('studio.vertex.persisted'):tr('studio.vertex.blocked');
+  const ring=activeImpactRingId&&demoWorldStore.records[activeImpactRingId];
+  $('studioSplitRing').disabled=!ring||
+    Object.keys(geometryVertexOffsets(ring)).length===0||
+    ringIdsForPhysicalParent(demoWorldStore,activeImpactRingId).length>0;
+}
 function drawGeometry(canvasElement, deformed) {
   const context = canvasElement.getContext('2d');
   context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -611,6 +681,7 @@ function drawGeometry(canvasElement, deformed) {
   else drawContextHierarchy(context, canvasElement, deformed);
   drawSelectedFace(context, canvasElement, deformed);
   drawAxes(context, canvasElement, deformed);
+  if(deformed)drawEditableVertices(context,canvasElement);
 }
 
 function describeInterface(result) {
@@ -715,6 +786,7 @@ function renderGeometryLab() {
   drawGeometry(referenceCanvas, false);
   drawGeometry(deformedCanvas, true);
   syncStudioSelection(probe);
+  updateVertexInspector();
 }
 
 for (const input of Object.values(lab)) {
@@ -722,49 +794,92 @@ for (const input of Object.values(lab)) {
 }
 
 function attachCameraControls(canvasElement) {
-  canvasElement.addEventListener('pointerdown', event => {
-    if (event.button !== 0) return;
+  canvasElement.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;
+    const rect=canvasElement.getBoundingClientRect();
+    if(canvasElement===deformedCanvas && $('studioVertexEdit')?.checked){
+      const hit=nearestEditableVertex(canvasElement,
+        (event.clientX-rect.left)*canvasElement.width/rect.width,
+        (event.clientY-rect.top)*canvasElement.height/rect.height);
+      if(hit){
+        canvasElement.setPointerCapture(event.pointerId);
+        selectedVertexReference=[...hit.reference];
+        drag={kind:'vertex',id:event.pointerId,reference:[...hit.reference],
+          source:studioGeometrySource(),startX:event.clientX,startY:event.clientY,
+          influence:[0,0,0],moved:false};
+        renderGeometryLab();
+        return;
+      }
+    }
     canvasElement.setPointerCapture(event.pointerId);
-    drag = { id: event.pointerId, startX: event.clientX, startY: event.clientY,
-      x: event.clientX, y: event.clientY, moved: false };
+    drag={kind:'camera',id:event.pointerId,startX:event.clientX,startY:event.clientY,
+      x:event.clientX,y:event.clientY,moved:false};
   });
 
-  canvasElement.addEventListener('pointermove', event => {
-    if (!drag || drag.id !== event.pointerId) return;
-    if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 5) {
-      drag.moved = true;
+  canvasElement.addEventListener('pointermove',event=>{
+    if(!drag || drag.id!==event.pointerId)return;
+    if(drag.kind==='vertex'){
+      const rect=canvasElement.getBoundingClientRect();
+      const dx=(event.clientX-drag.startX)*canvasElement.width/rect.width;
+      const dy=(event.clientY-drag.startY)*canvasElement.height/rect.height;
+      drag.influence=cameraPlaneDrag(dx,dy,camera,canvasElement.width,canvasElement.height);
+      drag.moved=Math.hypot(dx,dy)>0;
+      renderGeometryLab();
+      return;
     }
-    if (!drag.moved) return;
-    const dx = event.clientX - drag.x;
-    const dy = event.clientY - drag.y;
-    drag.x = event.clientX;
-    drag.y = event.clientY;
-    camera.yaw += dx * 0.01;
-    camera.pitch = Math.max(-1.35, Math.min(1.35, camera.pitch + dy * 0.01));
+    if(Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)>5)drag.moved=true;
+    if(!drag.moved)return;
+    const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+    drag.x=event.clientX;drag.y=event.clientY;
+    camera.yaw+=dx*.01;
+    camera.pitch=Math.max(-1.35,Math.min(1.35,camera.pitch+dy*.01));
     renderGeometryLab();
   });
 
-  canvasElement.addEventListener('pointerup', event => {
-    if (!drag || drag.id !== event.pointerId) return;
-    const wasClick = !drag.moved &&
-      Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <= 5;
-    drag = null;
-    // Reference-space picker is deliberately not applied to deformed geometry.
-    if (wasClick && canvasElement === referenceCanvas) {
-      const rect = canvasElement.getBoundingClientRect();
-      const hit = pickReferenceCube({
-        x: (event.clientX - rect.left) * canvasElement.width / rect.width,
-        y: (event.clientY - rect.top) * canvasElement.height / rect.height,
-        width: canvasElement.width, height: canvasElement.height, camera
+  canvasElement.addEventListener('pointerup',event=>{
+    if(!drag || drag.id!==event.pointerId)return;
+    const completed=drag;
+    drag=null;
+    if(completed.kind==='vertex'){
+      if(completed.moved){
+        const outcome=applyVertexInfluence(demoWorldStore,{
+          source:completed.source,reference:completed.reference,
+          influence:completed.influence,
+          threshold:Number(lab.influenceThreshold.value),
+          compliance:Number(lab.influenceCompliance.value)
+        });
+        demoWorldStore=outcome.store;
+        lastInfluenceResult=outcome.result;
+        if(outcome.updated.length){
+          activeImpactRingId=outcome.created[0]??outcome.updated[0];
+          studioTreeUi?.onStoreChanged({source:completed.source,
+            ringId:activeImpactRingId,
+            physicalParentId:demoWorldStore.records[activeImpactRingId]?.physicalParentId});
+          studioTreeUi?.open('impact');
+        }
+      }
+      renderGeometryLab();
+      return;
+    }
+    const wasClick=!completed.moved&&
+      Math.hypot(event.clientX-completed.startX,event.clientY-completed.startY)<=5;
+    if(wasClick && canvasElement===referenceCanvas){
+      const rect=canvasElement.getBoundingClientRect();
+      const hit=pickReferenceCube({
+        x:(event.clientX-rect.left)*canvasElement.width/rect.width,
+        y:(event.clientY-rect.top)*canvasElement.height/rect.height,
+        width:canvasElement.width,height:canvasElement.height,camera
       });
-      if (hit) {
-        const path = addressForPoint(hit.inside, Number(lab.probeDepth.value)).path;
-        selectStudioPath(path, hit.axis, hit.side);
+      if(hit){
+        const path=addressForPoint(hit.inside,Number(lab.probeDepth.value)).path;
+        selectStudioPath(path,hit.axis,hit.side);
       }
     }
   });
-  canvasElement.addEventListener('pointercancel', event => {
-    if (drag?.id === event.pointerId) drag = null;
+  canvasElement.addEventListener('pointercancel',event=>{
+    if(drag?.id===event.pointerId){
+      drag=null;renderGeometryLab();
+    }
   });
 
   canvasElement.addEventListener('wheel', event => {
@@ -802,6 +917,12 @@ function createStudioWorkspace() {
         <select id="studioLanguage" aria-label="Язык интерфейса"><option value="ru">Русский</option><option value="en">English</option></select>
       </label>
     </div>
+    <div class="studio-vertex-toolbar">
+      <label><input type="checkbox" id="studioVertexEdit">
+        <span id="studioVertexEditLabel">Редактировать вершины</span></label>
+      <button type="button" id="studioSplitRing" disabled>Разделить кольцо</button>
+      <span id="studioVertexState" role="status"></span>
+    </div>
     <div class="studio-viewports"></div>
     <p class="studio-picking-help" id="studioPickingHelp"></p>
   `;
@@ -828,6 +949,12 @@ function createStudioWorkspace() {
       </label>
       <button type="button" id="studioChildButton" aria-label="Enter selected octant">↓</button>
     </div>
+    <div class="studio-vertex-readout">
+      <span id="studioVertexKeyLabel">Вершина</span>
+      <output id="studioVertexKey">—</output>
+      <span id="studioRingCountLabel">Колец</span>
+      <output id="studioRingCount">0</output>
+    </div>
     <h4 id="studioDiagnosticsHeading">Состояние</h4>
   `;
   inspector.append(document.querySelector('.lab-readout'));
@@ -842,6 +969,7 @@ function createStudioWorkspace() {
     getSplitModel:buildModel,
     getWorldStore:()=>demoWorldStore,
     core:{ringRecordState,ringIdsForPhysicalParent,validateWorldStore},
+    onSelectRing:id=>{activeImpactRingId=id;updateVertexInspector();},
     onSelectOctree:path=>selectStudioPath(path),
     onSelectSplit:owner=>{
       // Split leaf means a currently materialized owner, not merely the XY region.
@@ -864,6 +992,25 @@ function createStudioWorkspace() {
   };
   for (const button of buttons) button.addEventListener('click', () => setMode(button.dataset.view));
   setMode('reference');
+  $('studioVertexEdit').addEventListener('change',()=>{
+    if($('studioVertexEdit').checked)setMode('deformed');
+    renderGeometryLab();
+  });
+  $('studioSplitRing').addEventListener('click',()=>{
+    if(!activeImpactRingId || !demoWorldStore.records[activeImpactRingId])return;
+    const source=demoWorldStore.records[activeImpactRingId].source;
+    const prior=worldGeometryOffsets(demoWorldStore,source);
+    const result=splitGeometryFractalRing(demoWorldStore,activeImpactRingId);
+    const next=worldGeometryOffsets(result.store,source);
+    // A split is forbidden from altering any canonical offset.
+    for(const key of Object.keys(prior)){
+      if(JSON.stringify(prior[key])!==JSON.stringify(next[key]))throw Error('vertex changed during ring split: '+key);
+    }
+    demoWorldStore=result.store;
+    studioTreeUi?.onStoreChanged({source,ringId:activeImpactRingId,physicalParentId:activeImpactRingId});
+    studioTreeUi?.open('physical');
+    renderGeometryLab();
+  });
 
   $('studioParent').addEventListener('click', () => {
     const parent = parentPath(currentProbeContext().pathA);
@@ -970,7 +1117,11 @@ function applyStudioLocale() {
     ['studio.parent', '#studioParent'],
     ['studio.child', '#studioChildLabel'],
     ['studio.status', '#studioDiagnosticsHeading'],
-    ['studio.language', '.studio-language span']
+    ['studio.language', '.studio-language span'],
+    ['studio.vertex.edit', '#studioVertexEditLabel'],
+    ['studio.vertex.split', '#studioSplitRing'],
+    ['studio.vertex.key', '#studioVertexKeyLabel'],
+    ['studio.vertex.rings', '#studioRingCountLabel']
   ];
   for (const [key, selector, descendant] of direct) {
     const el = descendant
@@ -1020,6 +1171,7 @@ function applyStudioLocale() {
     replaceVisibleText(labels[9], tr('studio.totalParts'));
   }
   $('studioLanguage').setAttribute('aria-label', tr('studio.language'));
+  $('studioVertexEdit').setAttribute('aria-label',tr('studio.vertex.edit'));
   $('view').setAttribute('aria-label', tr('studio.slice'));
   $('studioBreadcrumbs').setAttribute('aria-label', tr('studio.breadcrumb'));
   $('studioChildButton').setAttribute('aria-label', tr('studio.enterChild'));

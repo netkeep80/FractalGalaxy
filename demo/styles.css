@@ -470,3 +470,11 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 
 .studio-tree-tabs {grid-template-columns:repeat(2,minmax(0,1fr));}
 .studio-tree-node[data-tree-kind=ring][aria-selected=true]{border-color:#efb85c;background:#3a2c1a;}
+
+.studio-vertex-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:9px 11px;border:1px solid #274456;border-radius:10px;background:#081724;}
+.studio-vertex-toolbar label{display:flex;align-items:center;gap:8px;color:#bde8df;font-size:12px;cursor:pointer;}
+.studio-vertex-toolbar input{accent-color:#61dfae;}
+.studio-vertex-toolbar button{padding:7px 10px;font-size:12px;}
+.studio-vertex-toolbar [role=status]{font-size:11px;color:#91b1bd;flex:1;min-width:150px;}
+.studio-vertex-readout{display:grid;grid-template-columns:1fr auto;gap:8px;margin:12px 0 16px;font-size:11px;align-items:start;color:#9cb4c1;border-top:1px solid #254053;padding-top:12px;}
+.studio-vertex-readout output{font-family:monospace;color:#c8f8dc;max-width:155px;overflow-wrap:anywhere;text-align:right;}

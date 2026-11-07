@@ -22,3 +22,7 @@ relations:
     target:
       kind: artifact
       path: "tests/interaction-hierarchy.test.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-tree.mjs"

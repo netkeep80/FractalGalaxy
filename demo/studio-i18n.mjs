@@ -1,6 +1,13 @@
 export const translations = Object.freeze({
   ru: Object.freeze({
     'studio.workspace':'Рабочее пространство Studio',
+    'studio.vertex.edit': "Редактировать вершины",
+    'studio.vertex.split': "Разделить кольцо",
+    'studio.vertex.key': "Вершина",
+    'studio.vertex.rings': "FractalRing",
+    'studio.vertex.ready': "Перетащите вершину в деформированном виде",
+    'studio.vertex.persisted': "Смещение сохранено в FractalRing",
+    'studio.vertex.blocked': "Воздействие ниже порога — изменений нет",
     'studio.tree.title':'Иерархии',
     'studio.tree.impact': "Воздействия",
     'studio.tree.verticesShort': "вершин",
@@ -143,6 +150,13 @@ export const translations = Object.freeze({
   }),
   en: Object.freeze({
     'studio.workspace':'Studio workspace',
+    'studio.vertex.edit': "Edit vertices",
+    'studio.vertex.split': "Split ring",
+    'studio.vertex.key': "Vertex",
+    'studio.vertex.rings': "FractalRings",
+    'studio.vertex.ready': "Drag a vertex in Deformed view",
+    'studio.vertex.persisted': "Displacement saved in FractalRing",
+    'studio.vertex.blocked': "Below threshold — no persistent change",
     'studio.tree.title':'Hierarchies',
     'studio.tree.impact': "Influences",
     'studio.tree.verticesShort': "vertices",
