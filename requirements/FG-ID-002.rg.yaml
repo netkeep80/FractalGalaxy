@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-ID-002
 normative: "### FG-ID-002 — Стабильность физических ID при смене родителя\n\nПри присоединении (Attach) или отделении уже существующего объекта (Detach) физический ID данного FractalRing должен сохраняться. При разрезе, создающем новые самостоятельные материальные экземпляры (Split), должны назначаться новые физические ID, а прежний материальный владелец прекращает существовать."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

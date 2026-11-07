@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-012
 normative: "### FG-GEO-012 — Порог persistent geometry influence\n\nВоздействие на геометрию должно создавать persistent vertex displacement только при превышении настраиваемого geometry influence threshold. При magnitude ≤ threshold результирующий geometry offset должен быть нулевым. При превышении в линейной E1-модели в displacement должно входить только excess = magnitude − threshold, умноженное на compliance, с сохранением направления воздействия. Порог относится к изменению формы и не запрещает отдельное физическое действие подпороговой силы на движение тела."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

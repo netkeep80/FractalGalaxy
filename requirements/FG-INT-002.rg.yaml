@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-INT-002
 normative: "### FG-INT-002 — Различие физического присоединения и изменения вещества\n\nВ профиле E0 операция присоединения (Attach) не должна изменять B/D/Γ дочерних тел. Операция материального сращивания (Fuse), способная создать или изменить вещество, требует отдельной модели и не объявляется реализованной в E0."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-010
 normative: "### FG-GEO-010 — Сглаживание граничной поверхности\n\nФрактализатор должен допускать детерминированную функцию smoothing target для граничной вершины и управляемую степень приближения к ней. Smoothing context не должен зависеть от camera, render LOD или порядка построения соседних patches; одинаковая canonical vertex при одинаковом генеративном контексте должна получать одинаковый результат."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

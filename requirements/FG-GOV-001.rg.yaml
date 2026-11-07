@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GOV-001
 normative: "### FG-GOV-001 — Проверка точных ревизий RepoGuard\n\nПроверка pull request должна использовать RepoGuard 6.0.1 по точному SHA 74db97791e6da8a75287164f0d0b41579108f114, сопоставляя точные ревизии BASE и HEAD. Самопроверка HEAD→HEAD не должна выдаваться за доказательство полного перехода."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]
