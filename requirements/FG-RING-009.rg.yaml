@@ -9,7 +9,7 @@ relations:
   - predicates: [implemented_by]
     target:
       kind: artifact
-      path: "src/rings/sparse-ring-store.mjs"
+      path: "src/storage/world-store.mjs"
   - predicates: [implemented_by]
     target:
       kind: artifact

@@ -258,15 +258,6 @@ export {
   overrideFractalRing
 } from './rings/fractal-ring.mjs';
 
-export {
-  makeSparseRingStore,
-  putFractalRing,
-  getFractalRing,
-  ringsForProceduralSource,
-  ringsForPhysicalParent,
-  sparseRingCount
-} from './rings/sparse-ring-store.mjs';
-
 
 export {
   WORLD_STORE_VERSION,
@@ -285,5 +276,6 @@ export {
   ringIdsForPhysicalParent,
   worldStoreStats,
   serializePersistentWorldStore,
-  loadPersistentWorldStore
+  loadPersistentWorldStore,
+  validateWorldStore
 } from './storage/world-store.mjs';

@@ -9,10 +9,10 @@ import {
   shouldMaterializeFractalRing,
   makeFractalRing,
   reparentFractalRing,
-  makeSparseRingStore,
-  putFractalRing,
-  ringsForProceduralSource,
-  sparseRingCount
+  makeMemoryWorldStore,
+  putFractalRingRecord,
+  ringIdsForProceduralSource,
+  worldStoreStats
 } from '../src/fractal-matter.mjs';
 
 test('procedural octree path exists without FractalRing materialization', () => {
@@ -22,8 +22,8 @@ test('procedural octree path exists without FractalRing materialization', () => 
   assert.equal(proceduralRefKey(ref), 'planet-1:5/2/7/3');
   assert.equal(proceduralRefKey(parentProceduralRef(ref)), 'planet-1:5/2/7');
 
-  const store = makeSparseRingStore();
-  assert.equal(sparseRingCount(store), 0);
+  const store = makeMemoryWorldStore({ resident: 'none' });
+  assert.equal(worldStoreStats(store).persisted, 0);
 });
 
 test('ordinary procedural difference does not by itself require a FractalRing', () => {
@@ -50,12 +50,16 @@ test('deep changed region can be stored directly without intermediate FractalRin
     overrides: { deltaRevision: 1 }
   });
 
-  const store = putFractalRing(makeSparseRingStore(), changed);
+  const store = putFractalRingRecord(
+    makeMemoryWorldStore({ resident: 'none' }),
+    changed,
+    { resident: false }
+  );
 
-  assert.equal(sparseRingCount(store), 1);
-  assert.equal(ringsForProceduralSource(store, source)[0].id, 'changed-17');
-  assert.equal(store.byId['changed-17'].source.neighborRefs.west.rootId, 'planet-1');
-  assert.deepEqual(store.byId['changed-17'].source.neighborRefs.west.address, [5, 2, 7, 2]);
+  assert.equal(worldStoreStats(store).persisted, 1);
+  assert.deepEqual(ringIdsForProceduralSource(store, source), ['changed-17']);
+  assert.equal(store.records['changed-17'].source.neighborRefs.west.rootId, 'planet-1');
+  assert.deepEqual(store.records['changed-17'].source.neighborRefs.west.address, [5, 2, 7, 2]);
 });
 
 test('physical reparenting does not change procedural origin', () => {

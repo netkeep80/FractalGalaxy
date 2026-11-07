@@ -98,8 +98,7 @@ Renderer может виртуально запрашивать более гл�
 
 - `src/procedural/source-ref.mjs` — стабильные процедурные ссылки;
 - `src/rings/fractal-ring.mjs` — индивидуализированный FractalRing с независимым physical parent;
-- `src/rings/sparse-ring-store.mjs` — простой sparse overlay helper;
-- `src/storage/world-store.mjs` — persistent-record/residency модель будущего paged/mmap backend;
+- `src/storage/world-store.mjs` — единственный E1 storage API для sparse overlay и persistent-record/residency модели будущего paged/mmap backend;
 - `tests/sparse-fractalring.test.mjs` и `tests/world-store.test.mjs` — минимальные поведенческие проверки.
 
 Существующий E0 API остаётся доступен через `src/fractal-matter.mjs`.
