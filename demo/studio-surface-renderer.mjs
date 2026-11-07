@@ -223,7 +223,7 @@ function intervalQuery(node,minY,maxY,visit,counters){
   if(node.minY<maxY)intervalQuery(node.right,minY,maxY,visit,counters);
 }
 function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
-  const outgoing=new Array(triangles.length);
+  const outgoing=triangles.map(()=>new Set());
   const incoming=new Int32Array(triangles.length);
   const allPairs=triangles.length*(triangles.length-1)/2;
   let candidatePairs=0,relations=0,edges=0;
@@ -243,10 +243,11 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
     const from=relation>0?second:first,to=relation>0?first:second;
-    if(outgoing[from])outgoing[from].push(to);
-    else outgoing[from]=[to];
-    incoming[to]++;
-    edges++;
+    if(!outgoing[from].has(to)){
+      outgoing[from].add(to);
+      incoming[to]++;
+      edges++;
+    }
   };
 
   if(broadPhase){
@@ -315,8 +316,7 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     }
     remaining[chosen]=0;
     order.push(chosen);
-    const next=outgoing[chosen];
-    if(next)for(const to of next){
+    for(const to of outgoing[chosen]){
       orderOperations++;
       incoming[to]--;
       if(incoming[to]===0&&remaining[to]){
@@ -381,6 +381,18 @@ export function proofGapBoundaryVertices({
   }));
 }
 const meshStyleCache=new WeakMap();
+const meshVisibilityOrderCache=new WeakMap();
+function cachedVisibilityOrder(mesh,key){
+  if(key===null||key===undefined)return null;
+  return meshVisibilityOrderCache.get(mesh)?.get(String(key))??null;
+}
+function storeVisibilityOrder(mesh,key,order){
+  if(key===null||key===undefined)return;
+  let cache=meshVisibilityOrderCache.get(mesh);
+  if(!cache){cache=new Map();meshVisibilityOrderCache.set(mesh,cache);}
+  if(cache.size>=8&&!cache.has(String(key)))cache.delete(cache.keys().next().value);
+  cache.set(String(key),Object.freeze([...order]));
+}
 function triangleStyles(mesh){
   let cached=meshStyleCache.get(mesh);
   if(cached)return cached;
@@ -393,7 +405,7 @@ function triangleStyles(mesh){
   meshStyleCache.set(mesh,cached);
   return cached;
 }
-export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=true,stats=null}={}){
+export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=true,stats=null,visibilityCacheKey=null}={}){
   if(!mesh||!Array.isArray(mesh.vertices)||!Array.isArray(mesh.triangles)
     ||typeof project!=='function')throw new Error('proven mesh and projection required');
   const spatialVertices=mesh.vertices.map(vertex=>{
@@ -431,7 +443,22 @@ export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=tr
       fill:style.fill
     };
   });
-  return visibilityOrder(prepared,{broadPhase,stats});
+  const cachedOrder=cachedVisibilityOrder(mesh,visibilityCacheKey);
+  if(cachedOrder&&cachedOrder.length===prepared.length){
+    if(stats&&typeof stats==='object')Object.assign(stats,{
+      triangles:prepared.length,
+      allPairs:prepared.length*(prepared.length-1)/2,
+      candidatePairs:0,relations:0,edges:0,orderOperations:0,cycleBreaks:0,
+      broadPhase:Boolean(broadPhase),broadPhaseSortComparisons:0,
+      broadPhaseIndexVisits:0,broadPhaseExpireOperations:0,broadPhaseOperations:0,
+      satRejected:0,clipCalls:0,visibilityCacheHit:true
+    });
+    return cachedOrder.map(index=>prepared[index]);
+  }
+  const ordered=visibilityOrder(prepared,{broadPhase,stats});
+  storeVisibilityOrder(mesh,visibilityCacheKey,ordered.map(triangle=>triangle.index));
+  if(stats&&typeof stats==='object')stats.visibilityCacheHit=false;
+  return ordered;
 }
 export function paintProvenSurface(context,mesh,project,options={}){
   const tris=prepareProofTriangles(mesh,project,options);

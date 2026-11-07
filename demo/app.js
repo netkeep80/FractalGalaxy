@@ -374,7 +374,8 @@ const studioPerformance={
   lastVisibilityBroadPhaseExpireOperations:0,
   lastVisibilityBroadPhaseOperations:0,
   lastVisibilitySatRejected:0,
-  lastVisibilityClipCalls:0
+  lastVisibilityClipCalls:0,
+  lastVisibilityCacheHit:false
 };
 globalThis.__fractalGalaxyPerformance=Object.freeze({
   snapshot:()=>Object.freeze({...studioPerformance})
@@ -950,7 +951,11 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
   if(!mesh)return;
   const visibilityStats={},project=makeCameraProjector(canvasElement);
-  paintProvenSurface(context,mesh,project,{deformed,stats:visibilityStats});
+  paintProvenSurface(context,mesh,project,{
+    deformed,
+    stats:visibilityStats,
+    visibilityCacheKey:camera.yaw+'|'+camera.pitch
+  });
   studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;
   studioPerformance.lastVisibilityCandidates=visibilityStats.candidatePairs??0;
   studioPerformance.lastVisibilityOrderOperations=visibilityStats.orderOperations??0;
@@ -960,6 +965,7 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   studioPerformance.lastVisibilityBroadPhaseOperations=visibilityStats.broadPhaseOperations??0;
   studioPerformance.lastVisibilitySatRejected=visibilityStats.satRejected??0;
   studioPerformance.lastVisibilityClipCalls=visibilityStats.clipCalls??0;
+  studioPerformance.lastVisibilityCacheHit=Boolean(visibilityStats.visibilityCacheHit);
   drawRegionalProofGaps(context,canvasElement,deformed,project);
 }
 function surfaceProofLabel(mesh){

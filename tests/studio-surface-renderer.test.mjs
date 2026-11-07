@@ -225,3 +225,37 @@ test('PERF interval broad-phase avoids hidden quadratic scan when X overlaps but
  assert.ok(stats.broadPhaseSortComparisons>0);
  assert.ok(Number.isInteger(stats.broadPhaseExpireOperations));
 });
+
+
+test('PERF zoom-equivalent projection reuses exact painter order cache while yaw/pitch key invalidates it',()=>{
+ const positions=[
+  [0,0,.1],[2,0,.1],[0,2,.1],
+  [.4,.4,.5],[2.4,.4,.5],[.4,2.4,.5]
+ ];
+ const fixture={
+  vertices:positions.map(position=>({reference:position,position})),
+  triangles:[
+   {indices:[0,1,2],decision:'PRESENT'},
+   {indices:[3,4,5],decision:'PRESENT'}
+  ],unresolved:[]
+ };
+ const statsA={},statsZoom={},statsRotated={};
+ const a=prepareProofTriangles(
+  fixture,([x,y,z])=>({x:100+x*20,y:100+y*20,depth:z}),
+  {visibilityCacheKey:'yaw0|pitch0',stats:statsA}
+ ).map(t=>t.index);
+ const zoom=prepareProofTriangles(
+  fixture,([x,y,z])=>({x:100+x*80,y:100+y*80,depth:z}),
+  {visibilityCacheKey:'yaw0|pitch0',stats:statsZoom}
+ ).map(t=>t.index);
+ assert.deepEqual(zoom,a);
+ assert.equal(statsA.visibilityCacheHit,false);
+ assert.equal(statsZoom.visibilityCacheHit,true);
+ assert.equal(statsZoom.candidatePairs,0);
+ prepareProofTriangles(
+  fixture,([x,y,z])=>({x:100+(x+z*.2)*20,y:100+y*20,depth:z-x*.1}),
+  {visibilityCacheKey:'yaw1|pitch0',stats:statsRotated}
+ );
+ assert.equal(statsRotated.visibilityCacheHit,false);
+ assert.ok(statsRotated.candidatePairs>0);
+});
