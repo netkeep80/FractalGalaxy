@@ -278,7 +278,8 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('surface proof and unresolved rendering have distinct visual effects, and only proven patches triangulate', async () => {
-      const hash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
+      await cdp.evaluate('document.querySelector("[data-surface-mode=debug]").click()');
+      const hash = () cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
       const setTriangles = checked => cdp.evaluate('(() => {const e=document.getElementById("showTriangulation");e.checked='+checked+';e.dispatchEvent(new Event("change",{bubbles:true}));})()');
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
@@ -297,6 +298,60 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await hash(),unresolvedWithTriangles,'unresolved patch must not be triangulated');
       assert.notEqual(unresolvedWithTriangles,proven,'unresolved and proven must look different');
       await setTriangles(true);
+      await setControl('interfaceSource','procedural');
+      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+    });
+
+    await t.test('S2 browser proof: local filled mesh, diagnostic mode and explicit uncertainty',async()=>{
+      await setControl('probeDepth','0','input');
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','ROCK');
+      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      const get=expression=>cdp.evaluate(expression);
+      const png=()=>get('document.getElementById("referenceView").toDataURL()');
+      const initial=await png();
+      const original=await inspect();
+      const ringCount=await get('document.getElementById("studioRingCount").textContent');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'0');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'0');
+      assert.match(await get('document.getElementById("studioSurfaceStatus").textContent'),/нет/i);
+
+      await setControl('mediumB','EMPTY');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'8');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'9');
+      assert.equal(await get('document.getElementById("presentPatches").textContent'),'1');
+      assert.equal(await get('document.getElementById("unresolvedPatches").textContent'),'0');
+      const painted=await png();
+      assert.notEqual(painted,initial,'filled proven surface must change the actual canvas pixels');
+      const surfaceStatus=await get('document.getElementById("studioSurfaceStatus").textContent');
+      assert.match(surfaceStatus,/доказан/);
+
+      await cdp.evaluate('document.querySelector("[data-surface-mode=debug]").click()');
+      assert.equal(await get('document.querySelector("[data-surface-mode=debug]").getAttribute("aria-pressed")'),'true');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'8');
+      assert.notEqual(await png(),painted,'debug patch overlay must differ from filled view');
+      assert.equal((await inspect()).path,original.path);
+      assert.equal(await get('document.getElementById("studioRingCount").textContent'),ringCount);
+      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      assert.equal(await png(),painted,'switching display mode must recover bit-identical proven surface pixels');
+
+      await setControl('mediumA','MIXED');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'0');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'0');
+      assert.equal(await get('document.getElementById("unresolvedPatches").textContent'),'1');
+      assert.match(await get('document.getElementById("studioSurfaceStatus").textContent'),/уточнен/i);
+      assert.notEqual(await png(),painted,'proof gap should be visibly distinct from solid fill');
+      const unresolved=await png();
+      await setControl('studioLanguage','en');
+      assert.equal(await get('document.getElementById("studioLegendProven").textContent'),'Proven material interface');
+      assert.equal(await get('document.getElementById("studioLegendUnresolved").textContent'),'Unresolved proof region');
+      assert.equal(await get('document.querySelector("[data-surface-mode=surface]").textContent'),'Surface');
+      assert.equal(await png(),unresolved,'translation must not alter geometry pixels');
+      await setControl('studioLanguage','ru');
+      assert.equal(await png(),unresolved);
+      assert.equal((await inspect()).mass,original.mass);
+      assert.equal(await get('document.getElementById("studioRingCount").textContent'),ringCount);
       await setControl('interfaceSource','procedural');
     });
 
@@ -411,6 +466,10 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     await t.test('real 3D vertex drag: threshold gating, impact tree, FractalRing split and pixel-exact geometry preservation',async()=>{
       await cdp.evaluate('document.getElementById("resetCamera").click()');
       await setControl('probeDepth','0','input');
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','EMPTY');
+      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
       await setControl('faceAxis','z');
       await setControl('faceSide','1');
       await setControl('deformBlend','0','input');
@@ -429,6 +488,8 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
         await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});
       };
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0');
+      assert.equal(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent'),'8');
+      const meshBeforeDrag=await cdp.evaluate('document.getElementById("deformedView").toDataURL()');
       await moveDrag(2,0);
       assert.equal(await cdp.evaluate('document.getElementById("studioVertexKey").textContent'),'0,0,1');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','subthreshold gesture must not materialize');
@@ -442,6 +503,9 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','cancelled gesture must not create a ring');
       assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),beforeCancel,'cancelled gesture must restore preview');
       await moveDrag(70,-18);
+      assert.notEqual(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),meshBeforeDrag,
+        'dragged canonical center must change filled surface pixels');
+      assert.equal(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent'),'8');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'1','active gesture must create FractalRing');
       assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),false);
       assert.equal(await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").getAttribute("aria-selected")'),'true');
@@ -462,6 +526,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Split ring');
       await setControl('studioLanguage','ru');
       assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Разделить кольцо');
+      await setControl('interfaceSource','procedural');
     });
 
     assert.deepEqual(cdp.exceptions,[], 'no JavaScript exceptions under acceptance scenarios');
