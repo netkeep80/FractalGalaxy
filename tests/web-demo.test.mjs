@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 test('GitHub Pages demo publishes the complete source module graph', async () => {
   const appUrl = new URL('../demo/app.js', import.meta.url);
@@ -24,11 +26,23 @@ test('GitHub Pages demo publishes the complete source module graph', async () =>
   assert.match(app, /integrateMass/);
   assert.match(css, /canvas/);
 
-  // The facade now has nested E1 imports. Publishing only fractal-matter.mjs would
-  // make the browser fail module resolution even when the demo uses only E0 exports.
   assert.match(facade, /from '\.\/procedural\/source-ref\.mjs'/);
   assert.match(facade, /from '\.\/rings\/fractal-ring\.mjs'/);
+  assert.match(facade, /from '\.\/storage\/world-store\.mjs'/);
   assert.match(workflow, /cp -R src\/\. \.pages\/src\//);
   assert.doesNotMatch(workflow, /cp src\/fractal-matter\.mjs \.pages\/src\//);
   assert.match(workflow, /deploy-pages/);
+
+  const temp = await mkdtemp(join(tmpdir(), 'fractal-galaxy-pages-'));
+  try {
+    const assembledSrc = join(temp, 'src');
+    await cp(new URL('../src/', import.meta.url), assembledSrc, { recursive: true });
+    const deployedFacade = pathToFileURL(join(assembledSrc, 'fractal-matter.mjs')).href;
+    const module = await import(deployedFacade);
+    assert.equal(typeof module.makeProceduralRef, 'function');
+    assert.equal(typeof module.makeMemoryWorldStore, 'function');
+    assert.equal(typeof module.resolveM, 'function');
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
 });
