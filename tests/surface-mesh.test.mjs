@@ -105,3 +105,34 @@ test('center vertex of a proven whole face participates in render tessellation, 
   assert.equal(extraction.unresolved.length,0);
   assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:5}),/tessellation depth/);
 });
+
+test('mixed face may have proven triangles and unresolved holes without fabricated closure',()=>{
+  const extraction=extractInterfacePatches({
+    pathA:[0],pathB:[4],axis:'z',side:1,maxDepth:2,
+    classifyA:path=>{
+      if(path.length===1 || path.at(-1)===5)return mixedVolume();
+      return homogeneousVolume('ROCK');
+    },
+    classifyB:path=>{
+      if(path.length===1)return mixedVolume();
+      return homogeneousVolume(path.at(-1)===0?'EMPTY':'ROCK');
+    }
+  });
+  assert.equal(extraction.present.length,1);
+  assert.equal(extraction.unresolved.length,1);
+  assert.equal(extraction.stats.discardedPatches,2);
+  const mesh=assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:1});
+  assert.deepEqual(mesh.stats,{
+    provenPatches:1,renderQuads:4,unresolvedPatches:1,vertices:9,triangles:8
+  });
+  assert.deepEqual(mesh.unresolved[0].patch,{u0:.5,u1:1,v0:0,v1:.5});
+  assert.ok(mesh.patches.every(p=>p.proofPatch.u1===.5&&p.proofPatch.v1===.5));
+  assert.ok(mesh.triangles.every(t=>t.decision==='PRESENT'));
+  const forbidden=(p)=>p[0]>.000001 && p[0]<=1 && p[1]<0;
+  // No triangle belongs to the unresolved (+u,-v) quadrant.
+  for(const triangle of mesh.triangles){
+    const references=triangle.indices.map(i=>mesh.vertices[i].reference);
+    const center=references[0].map((v,i)=>(v+references[1][i]+references[2][i])/3);
+    assert.equal(forbidden(center),false);
+  }
+});
