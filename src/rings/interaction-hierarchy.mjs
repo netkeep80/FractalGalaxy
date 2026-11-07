@@ -103,13 +103,19 @@ export function splitGeometryFractalRing(store,ringId){
   if(ring.source.address.length>=30)throw new RangeError('octree depth unsupported');
   if(ringIdsForPhysicalParent(store,ringId).length)throw new Error('already has physical children');
   const originals=geometryVertexOffsets(ring);
-  const transferred=Object.entries(originals).map(([key,offset])=>({
-    reference:key.split(',').map(Number),
-    offset:vec3(offset,'stored offset')
-  }));
-  if(transferred.some(({reference})=>!inside(reference,ring.source.address))){
+  if(Object.keys(originals).some(key=>!inside(key.split(',').map(Number),ring.source.address))){
     throw new Error('ring has offsets outside source region');
   }
+  // Include geometry already visible from adjacent materialized regions.
+  // Otherwise a newly split ring could lose a shared boundary vertex even
+  // though it had no local copy of that persistent canonical displacement.
+  const effective=worldGeometryOffsets(store,ring.source);
+  const transferred=Object.entries(effective).filter(([key])=>
+    inside(key.split(',').map(Number),ring.source.address)
+  ).map(([key,offset])=>({
+    reference:key.split(',').map(Number),
+    offset:vec3(offset,'effective offset')
+  }));
   let nextStore=putFractalRingRecord(store,{
     ...ring,overrides:{...ring.overrides,geometryVertexOffsets:{}}
   },{resident:Boolean(store.residentIds[ringId])});

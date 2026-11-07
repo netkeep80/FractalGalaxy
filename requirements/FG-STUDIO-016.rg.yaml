@@ -26,3 +26,11 @@ relations:
     target:
       kind: artifact
       path: "demo/studio-tree.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"

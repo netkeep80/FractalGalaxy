@@ -93,3 +93,36 @@ test('reparent and detach geometry ring preserve world-space vertices with nonze
   eq(ringVertexWorldPosition(store,'child',ref,proc),before);
   assert.throws(()=>reparentRingPreservingGeometry(store,'a','a'),/cycle/);
 });
+
+test('second influence after split updates all shared copies and a subsequent nested split preserves geometry',()=>{
+  const source=src([]),ref=[0,0,1],canonical=[.31,.02,.9];
+  let store=makeMemoryWorldStore({resident:'none'});
+  const first=applyVertexInfluence(store,{source,reference:ref,influence:[.25,0,0],threshold:.05});
+  store=splitGeometryFractalRing(first.store,first.created[0]).store;
+  const before=worldGeometryOffsets(store,source)['0,0,1'];
+  const second=applyVertexInfluence(store,{source,reference:ref,influence:[0,.2,0],threshold:.05});
+  store=second.store;
+  assert.equal(second.created.length,0,'already materialized descendants must be updated rather than duplicated');
+  assert.equal(second.updated.length,4,'shared upper-face center belongs to four child octants');
+  const expected=worldGeometryOffsets(store,source)['0,0,1'];
+  assert.deepEqual(expected,[before[0],before[1]+.15,before[2]]);
+  const touching=second.updated;
+  for(const id of touching){
+    assert.deepEqual(ringVertexWorldPosition(store,id,ref,canonical),
+      canonical.map((v,i)=>v+expected[i]));
+  }
+  const original=touching[0];
+  const split=splitGeometryFractalRing(store,original);
+  const nested=split.store;
+  assert.equal(split.created.length,8);
+  assert.deepEqual(worldGeometryOffsets(nested,source)['0,0,1'],expected);
+  for(const id of split.created){
+    const ring=nested.records[id];
+    if(ring.overrides.geometryVertexOffsets['0,0,1']){
+      assert.deepEqual(ringVertexWorldPosition(nested,id,ref,canonical),
+        canonical.map((v,i)=>v+expected[i]));
+    }
+  }
+  const cold=loadPersistentWorldStore(serializePersistentWorldStore(nested),{resident:'none'});
+  assert.deepEqual(worldGeometryOffsets(cold,source)['0,0,1'],expected);
+});
