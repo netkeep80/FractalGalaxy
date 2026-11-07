@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-RING-013
+normative: "### FG-RING-013 — Сохранение координат при разбиении колец\n\nПри явном разбиении существующего FractalRing на восемь дочерних областей система должна перенести persistent offsets канонических вершин во все дочерние кольца, чьи замкнутые объёмы содержат вершину. После разбиения фактические мировые координаты этих вершин, в том числе общих граничных, должны точно совпадать с координатами до разбиения при неизменной процедурной геометрии. При переподчинении в поддерживаемой трансляционной модели позиция вершины также должна оставаться неизменной; полные ориентации и механическое разрушение — отдельные требования."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-012
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-vertex-influence.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/interaction-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/interaction-hierarchy.test.mjs"

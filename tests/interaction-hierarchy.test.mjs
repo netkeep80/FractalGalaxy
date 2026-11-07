@@ -61,7 +61,7 @@ test('split into eight persistent child rings preserves every pre-existing defor
       const {min,max}=r.reduce((b,branch)=>{
         const m=b.min.map((v,i)=>(v+b.max[i])/2);
         return {min:b.min.map((v,i)=>((branch>>i)&1)?m[i]:v),
-          max:b.max.map((v,i)=>((branch>>i)&1)?v:m[i]};
+          max:b.max.map((v,i)=>((branch>>i)&1)?v:m[i])};
       },{min:[-1,-1,-1],max:[1,1,1]});
       return ref.every((x,i)=>x>=min[i]-1e-12&&x<=max[i]+1e-12);
     });

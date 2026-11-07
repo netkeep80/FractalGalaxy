@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-016
+normative: "### FG-STUDIO-016 — Реактивные деревья изменений\n\nПосле создающего persistent override воздействия Studio должен показать созданный FractalRing и пространственную иерархию результирующих деформаций; деревья физического родительства и процедурных источников должны отображать новые записи согласно WorldStore. После разбиения кольца их структура и состояние отображаются без перезагрузки страницы. Просмотр деревьев не должен материализовать записи и не должен изменять координаты вершин."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-015
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-vertex-influence.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/interaction-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/interaction-hierarchy.test.mjs"

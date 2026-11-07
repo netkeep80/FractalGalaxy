@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-015
+normative: "### FG-STUDIO-015 — Перетаскивание вершины мышью\n\nВ режиме редактирования вершин Studio должен показывать доступные для выбора канонические вершины выбранной грани в деформированном 3D-представлении. Нажатие на вершину с последующим перетаскиванием перемещает предварительный геометрический результат в плоскости экрана; при отпускании применяется порог persistent influence, обновляется каноническая геометрия и Inspector. Перемещение камеры вне вершин и отмена жеста не должны создавать persistent геометрические overrides."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-001
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-vertex-influence.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/interaction-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/interaction-hierarchy.test.mjs"
