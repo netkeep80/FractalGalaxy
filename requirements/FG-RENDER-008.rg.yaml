@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-008
+normative: "### FG-RENDER-008 — Каноническая идентичность региона и независимость от обхода\n\nПри одинаковых материальном состоянии, наборе ячеек и пределах уточнения изменение порядка обхода ячеек или пар граней не должно менять канонический набор региональных face records, proven/unresolved patches и канонических координат. Общая внутренняя грань двух выбранных соседних ячеек должна учитываться ровно один раз."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-007
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s3-regional-surface.md"

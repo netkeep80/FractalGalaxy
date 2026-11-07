@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-010
+normative: "### FG-RENDER-010 — Региональная сборка и LOD остаются производными\n\nИзменение render tessellation, порядка регионального обхода или отображаемого LOD не должно менять материальную классификацию, D, записи WorldStore, владение FractalRing или сохранённые canonical vertex offsets. Повторная сборка того же региона после Split или cold load должна сохранять ранее определённые канонические позиции."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s3-regional-surface.md"

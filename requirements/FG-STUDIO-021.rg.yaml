@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-021
+normative: "### FG-STUDIO-021 — Канонически подразделённая деформированная топологическая сетка\n\nЛюбая отображаемая линия топологической опорной сетки после нелинейной деформации должна строиться через общие канонические subdivided vertices, а не только через деформированные концы одной хорды. Если две reference-линии пересекаются в одной канонической точке, обе отображаемые линии должны использовать один canonical vertex key и точно одну и ту же деформированную координату пересечения."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-018
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s3-regional-surface.md"

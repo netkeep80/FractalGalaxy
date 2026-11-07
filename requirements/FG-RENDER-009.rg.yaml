@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-009
+normative: "### FG-RENDER-009 — Бесшовное coarse/fine-сопряжение\n\nЕсли соседние доказанные участки поверхности представлены на разных уровнях octree/quadtree детализации, их общая граница должна использовать каноническое подразделение и общую идентичность вершин так, чтобы fine-edge вершины имели ту же деформированную границу, что и coarse-сторона. Региональный mesh не должен содержать трещин, T-junction holes или двух координат одного канонического общего пункта."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-007
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s3-regional-surface.md"

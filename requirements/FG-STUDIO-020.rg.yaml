@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-020
+normative: "### FG-STUDIO-020 — Региональный proof-aware просмотр поверхности\n\nStudio должен уметь отображать конечную региональную материальную поверхность, а не только одну выбранную грань, при этом визуально различать доказанную геометрию и unresolved proof gaps и показывать достаточные счётчики для обнаружения случайного заполнения или дублирования граней."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-018
+  - predicates: [depends_on]
+    target:
+      kind: requirement
+      id: FG-RENDER-007
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s3-regional-surface.md"
