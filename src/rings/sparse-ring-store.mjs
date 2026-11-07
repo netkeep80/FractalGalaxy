@@ -1,5 +1,5 @@
 import { makeFractalRing } from './fractal-ring.mjs';
-import { proceduralRefKey } from '../procedural/source-ref.mjs';
+import { proceduralIdentityKey } from '../procedural/source-ref.mjs';
 
 export function makeSparseRingStore(rings = []) {
   const byId = Object.create(null);
@@ -26,8 +26,8 @@ export function getFractalRing(store, id) {
 }
 
 export function ringsForProceduralSource(store, ref) {
-  const key = proceduralRefKey(ref);
-  return Object.values(store.byId).filter(ring => proceduralRefKey(ring.source) === key);
+  const key = proceduralIdentityKey(ref);
+  return Object.values(store.byId).filter(ring => proceduralIdentityKey(ring.source) === key);
 }
 
 export function ringsForPhysicalParent(store, parentId = null) {

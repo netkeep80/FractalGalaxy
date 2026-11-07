@@ -78,9 +78,13 @@ ProceduralRef {
 
 ## 6. Хранилище
 
-Логический WorldStore должен быть разреженным и в дальнейшем не обязан целиком находиться в RAM. Допустимы memory-mapped или paged backend'ы.
+Логический WorldStore разрежен и не обязан целиком находиться в RAM. Persistent existence и transient residency — разные состояния: запись может существовать в мире и одновременно быть UNLOADED.
+
+Индексы по FractalRing ID, procedural source и physical parent должны работать на persistent уровне и не требовать загрузки payload всех rings. Допустимы memory-mapped, paged и другие backend'ы при одинаковой семантике мира.
 
 Отсутствие FractalRing-записи означает только отсутствие индивидуализированного persistent state. Оно не означает отсутствие соответствующей процедурной области.
+
+Подробный контракт E1 storage: [e1-world-store.md](e1-world-store.md).
 
 ## 7. Rendering
 
@@ -94,7 +98,8 @@ Renderer может виртуально запрашивать более гл�
 
 - `src/procedural/source-ref.mjs` — стабильные процедурные ссылки;
 - `src/rings/fractal-ring.mjs` — индивидуализированный FractalRing с независимым physical parent;
-- `src/rings/sparse-ring-store.mjs` — разреженное хранилище rings без требования хранить промежуточные octree-узлы;
-- `tests/sparse-fractalring.test.mjs` — минимальные поведенческие проверки.
+- `src/rings/sparse-ring-store.mjs` — простой sparse overlay helper;
+- `src/storage/world-store.mjs` — persistent-record/residency модель будущего paged/mmap backend;
+- `tests/sparse-fractalring.test.mjs` и `tests/world-store.test.mjs` — минимальные поведенческие проверки.
 
 Существующий E0 API остаётся доступен через `src/fractal-matter.mjs`.

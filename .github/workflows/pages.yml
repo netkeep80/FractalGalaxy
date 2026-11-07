@@ -42,7 +42,7 @@ jobs:
           rm -rf .pages
           mkdir -p .pages/src
           cp demo/index.html demo/app.js demo/styles.css .pages/
-          cp src/fractal-matter.mjs .pages/src/
+          cp -R src/. .pages/src/
           touch .pages/.nojekyll
 
       - name: Upload Pages artifact

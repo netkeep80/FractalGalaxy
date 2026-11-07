@@ -22,10 +22,10 @@ export function makeProceduralRef({
   const neighbors = {};
   for (const [key, ref] of Object.entries(neighborRefs ?? {})) {
     if (!key) throw new Error('neighbor key required');
-    neighbors[key] = {
+    neighbors[key] = Object.freeze({
       rootId: ref.rootId,
       address: normalizeProceduralAddress(ref.address ?? [])
-    };
+    });
     if (!neighbors[key].rootId) throw new Error('neighbor rootId required');
   }
 
@@ -62,8 +62,11 @@ export function proceduralRefKey(ref) {
   return `${current.rootId}:${current.address.join('/')}`;
 }
 
+export function proceduralIdentityKey(ref) {
+  const current = makeProceduralRef(ref);
+  return `${current.algorithmId}@${current.algorithmVersion}|${proceduralRefKey(current)}`;
+}
+
 export function sameProceduralRef(a, b) {
-  return proceduralRefKey(a) === proceduralRefKey(b)
-    && a.algorithmId === b.algorithmId
-    && a.algorithmVersion === b.algorithmVersion;
+  return proceduralIdentityKey(a) === proceduralIdentityKey(b);
 }

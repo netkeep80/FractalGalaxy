@@ -247,6 +247,7 @@ export {
   childProceduralRef,
   parentProceduralRef,
   proceduralRefKey,
+  proceduralIdentityKey,
   sameProceduralRef
 } from './procedural/source-ref.mjs';
 
@@ -265,3 +266,24 @@ export {
   ringsForPhysicalParent,
   sparseRingCount
 } from './rings/sparse-ring-store.mjs';
+
+
+export {
+  WORLD_STORE_VERSION,
+  RECORD_ABSENT,
+  RECORD_UNLOADED,
+  RECORD_RESIDENT,
+  makeMemoryWorldStore,
+  ringRecordState,
+  hasFractalRingRecord,
+  readResidentFractalRing,
+  loadFractalRingRecord,
+  unloadFractalRingRecord,
+  putFractalRingRecord,
+  deleteFractalRingRecord,
+  ringIdsForProceduralSource,
+  ringIdsForPhysicalParent,
+  worldStoreStats,
+  serializePersistentWorldStore,
+  loadPersistentWorldStore
+} from './storage/world-store.mjs';
