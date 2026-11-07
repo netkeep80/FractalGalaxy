@@ -24,7 +24,8 @@ test('above-threshold drag persists only excess and aggregates resulting vertex 
   let store=makeMemoryWorldStore({resident:'none'});
   const a=applyVertexInfluence(store,{source:src([7]),reference:[1,1,1],influence:[.145,0,0],threshold:.045,compliance:2});
   store=a.store;
-  eq(a.offset,[.19999999999999998,0,0]);
+  assert.ok(Math.abs(a.offset[0]-.2)<1e-12);
+  assert.deepEqual(a.offset.slice(1),[0,0]);
   assert.equal(worldStoreStats(store).persisted,1);
   const b=applyVertexInfluence(store,{source:src([7]),reference:[1,1,1],influence:[0,.095,0],threshold:.045,compliance:1});
   store=b.store;
