@@ -1,4 +1,5 @@
 import {spawn,spawnSync,execFileSync} from 'node:child_process';
+import {performance} from 'node:perf_hooks';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve,extname} from 'node:path';
@@ -90,7 +91,7 @@ function connectCdp(socket){
 function percentile(sorted,fraction){
   return sorted[Math.min(sorted.length-1,Math.floor(sorted.length*fraction))];
 }
-async function measure(root,binary,profile,samples){
+async function measure(root,binary,profile,samples,mode){
   const web=await startServer(root);
   const chrome=await startChrome(binary,profile);
   try{
@@ -104,11 +105,30 @@ async function measure(root,binary,profile,samples){
     await cdp.evaluate('document.querySelector("button[data-view=deformed]").click()');
     await cdp.evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
     const triangles=await cdp.evaluate('Number(document.getElementById("studioMeshTriangles").textContent)');
-    const timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
+    let timings;
+    if(mode==='zoom'){
+      timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
+    }else if(mode==='rotate'){
+      const hit=await cdp.evaluate('(()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});const r=c.getBoundingClientRect();return{x:r.left+r.width*.5,y:r.top+r.height*.5};})()');
+      await cdp.evaluate('new Promise(requestAnimationFrame)');
+      await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:hit.x,y:hit.y,button:'left',clickCount:1});
+      timings=[];
+      for(let i=0;i<samples;i++){
+        const start=performance.now();
+        await cdp.send('Input.dispatchMouseEvent',{
+          type:'mouseMoved',x:hit.x+8*(i+1),y:hit.y+((i%2)?6:-6),button:'left',buttons:1
+        });
+        await cdp.evaluate('new Promise(requestAnimationFrame)');
+        timings.push(performance.now()-start);
+      }
+      await cdp.send('Input.dispatchMouseEvent',{
+        type:'mouseReleased',x:hit.x+8*samples,y:hit.y,button:'left',clickCount:1
+      });
+    }else throw new Error('unknown benchmark mode '+mode);
     if(cdp.exceptions.length)throw new Error('browser exceptions: '+JSON.stringify(cdp.exceptions));
     const sorted=[...timings].sort((a,b)=>a-b);
     return {
-      triangles,samples:timings.length,min:sorted[0],
+      mode,triangles,samples:timings.length,min:sorted[0],
       p50:percentile(sorted,.5),p95:percentile(sorted,.95),max:sorted.at(-1)
     };
   }finally{
@@ -125,16 +145,27 @@ const baseRoot=join(temp,'base');
 const binary=chromeBinary();
 try{
   execFileSync('git',['worktree','add','--detach',baseRoot,baseSha],{cwd:repoRoot,stdio:'inherit'});
-  const head=await measure(repoRoot,binary,join(temp,'chrome-head'),20);
+  const headZoom=await measure(repoRoot,binary,join(temp,'chrome-head-zoom'),20,'zoom');
+  const headRotate=await measure(repoRoot,binary,join(temp,'chrome-head-rotate'),20,'rotate');
   // BASE is intentionally bounded: pre-optimization camera redraw can take many seconds.
-  const base=await measure(baseRoot,binary,join(temp,'chrome-base'),3);
-  if(base.triangles!==head.triangles)throw new Error('BASE/HEAD benchmark geometry mismatch: '+JSON.stringify({base,head}));
-  const speedup=base.p50/head.p50;
-  const result={baseSha,headSha:execFileSync('git',['rev-parse','HEAD'],{cwd:repoRoot,encoding:'utf8'}).trim(),base,head,speedup};
+  const baseZoom=await measure(baseRoot,binary,join(temp,'chrome-base-zoom'),3,'zoom');
+  const baseRotate=await measure(baseRoot,binary,join(temp,'chrome-base-rotate'),3,'rotate');
+  for(const [base,head] of [[baseZoom,headZoom],[baseRotate,headRotate]]){
+    if(base.triangles!==head.triangles)throw new Error('BASE/HEAD benchmark geometry mismatch: '+JSON.stringify({base,head}));
+  }
+  const speedupZoom=baseZoom.p50/headZoom.p50;
+  const speedupRotate=baseRotate.p50/headRotate.p50;
+  const result={
+    baseSha,headSha:execFileSync('git',['rev-parse','HEAD'],{cwd:repoRoot,encoding:'utf8'}).trim(),
+    zoom:{base:baseZoom,head:headZoom,speedup:speedupZoom},
+    rotate:{base:baseRotate,head:headRotate,speedup:speedupRotate}
+  };
   console.log('PERF_BASE_HEAD '+JSON.stringify(result));
-  if(head.p50>100)throw new Error('HEAD median camera redraw exceeds 100ms: '+JSON.stringify(result));
-  if(head.p95>150)throw new Error('HEAD p95 camera redraw exceeds 150ms: '+JSON.stringify(result));
-  if(speedup<100)throw new Error('controlled BASE→HEAD median speedup is below 100x: '+JSON.stringify(result));
+  for(const metric of [result.zoom,result.rotate]){
+    if(metric.head.p50>100)throw new Error('HEAD median camera redraw exceeds 100ms: '+JSON.stringify(result));
+    if(metric.head.p95>150)throw new Error('HEAD p95 camera redraw exceeds 150ms: '+JSON.stringify(result));
+    if(metric.speedup<100)throw new Error('controlled BASE→HEAD median speedup is below 100x: '+JSON.stringify(result));
+  }
 }finally{
   try{execFileSync('git',['worktree','remove','--force',baseRoot],{cwd:repoRoot,stdio:'ignore'});}catch{}
   await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:200});

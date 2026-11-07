@@ -20,9 +20,10 @@ The performance stage is judged by controlled measurements, not by the original 
 The accepted candidate must satisfy all of the following:
 
 - same-run BASE→HEAD Chromium benchmark on one runner, browser, viewport and regional scene;
-- HEAD camera-only latency distribution uses at least 20 independently scheduled redraws;
+- the controlled comparison covers both wheel/zoom and real pointer-drag yaw/pitch;
+- each HEAD camera path uses at least 20 independently scheduled redraws;
 - HEAD median camera-only latency <= 100 ms and p95 <= 150 ms;
-- controlled BASE median / HEAD median >= 100×;
+- controlled BASE median / HEAD median >= 100× independently for zoom and yaw/pitch rotation;
 - zero regional extraction and zero regional mesh assembly after warmup for camera-only changes;
 - requestAnimationFrame coalescing of raw pointer/wheel events;
 - optimized painter order equals exhaustive painter order on deterministic adversarial scenes.
