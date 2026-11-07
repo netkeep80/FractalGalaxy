@@ -1,0 +1,36 @@
+format: repo-guard/requirement-v1
+id: FG-GEO-011
+normative: "### FG-GEO-011 — Persistent displacement вершины после взаимодействия\n\nЕсли физическое или пользовательское воздействие изменяет фактическую координату канонической вершины, результирующий displacement должен храниться как persistent индивидуализированное состояние и применяться после процедурной деформации/сглаживания. Такое смещение не должно зависеть от renderer и должно переживать cold save/load."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-GEO-008
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/vertex-deformation.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/geometry-overrides.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/storage/world-store.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/vertex-deformation.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"

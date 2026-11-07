@@ -175,8 +175,18 @@
         </label>
 
         <label>
-          <span>Искривление Φ <output id="deformOut">100%</output></span>
+          <span>Базовое искривление Φ <output id="deformOut">100%</output></span>
           <input id="deformBlend" type="range" min="0" max="1" value="1" step="0.01">
+        </label>
+
+        <label>
+          <span>Procedural RND amplitude <output id="rndOut">0.000</output></span>
+          <input id="rndAmplitude" type="range" min="0" max="0.20" value="0.06" step="0.005">
+        </label>
+
+        <label>
+          <span>Boundary smoothing <output id="smoothOut">35%</output></span>
+          <input id="smoothingWeight" type="range" min="0" max="1" value="0.35" step="0.05">
         </label>
 
         <label class="check">
@@ -234,7 +244,7 @@
       <div><strong>2</strong><span>Volume model лениво доказывает Homogeneous/Mixed.</span></div>
       <div><strong>3</strong><span>Различие сред создаёт interface.</span></div>
       <div><strong>4</strong><span>Surface quadtree уточняет только interface.</span></div>
-      <div><strong>5</strong><span>Φ искривляет геометрию, не меняя topology.</span></div>
+      <div><strong>5</strong><span>Φ + RND + smoothing двигают shared vertices, не меняя topology.</span></div>
     </div>
   </section>
 

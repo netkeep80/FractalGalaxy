@@ -14,6 +14,7 @@ export function shouldMaterializeFractalRing(reason = {}) {
     reason.materialOverride
     || reason.parameterOverride
     || reason.algorithmOverride
+    || reason.geometryOverride
     || reason.ownershipOverride
     || reason.independentIdentity
     || reason.physicalState

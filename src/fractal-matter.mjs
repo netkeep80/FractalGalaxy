@@ -481,3 +481,17 @@ export {
   triangleNormal
 } from './geometry/triangulation.mjs';
 
+export {
+  deterministicVertexRandom,
+  radialBoundaryTarget,
+  interactionOffsetForVertex,
+  evaluateFractalVertex,
+  makeFractalVertexDeformation
+} from './geometry/vertex-deformation.mjs';
+
+export {
+  geometryVertexOffsets,
+  setFractalRingVertexOffset,
+  fractalRingVertexOffset
+} from './rings/geometry-overrides.mjs';
+

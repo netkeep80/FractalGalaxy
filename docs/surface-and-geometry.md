@@ -189,3 +189,80 @@ Winding определяется reference topology и направлением 
 Текущая triangulation пока не решает adaptive coarse/fine LOD stitching и T-junctions. Это отдельная следующая задача поверх уже канонических vertex/edge identities.
 
 Experiment Studio может показывать canonical diagonal пунктиром. Переключатель влияет только на rendering и не изменяет interface extraction.
+
+## 13. Кубический каркас и композиционная vertex deformation
+
+Кубическая/octree сетка задаёт **грубый фрактальный каркас** материи:
+
+- канонические адреса;
+- соседство;
+- shared vertex identity;
+- топологию interface patches.
+
+Она не обязана совпадать с окончательной формой материальной границы.
+
+Для канонической вершины E1 вводит явный pipeline:
+
+```text
+reference vertex ξ
+      ↓
+base deformation Φ₀
+      ↓
+deterministic procedural RND
+      ↓
+boundary smoothing
+      ↓
+persistent interaction displacement
+      ↓
+material vertex x
+      ↓
+FractalRing physical transform
+      ↓
+world vertex X
+```
+
+### Procedural RND
+
+`deterministicVertexRandom` использует canonical reference vertex key, seed и amplitude. Он не использует identity конкретной cell/patch.
+
+Поэтому одна shared vertex, вычисленная независимо двумя соседними cells, получает одинаковый псевдослучайный offset.
+
+Procedural roughness является частью алгоритма фрактализации и сама по себе не требует materialization FractalRing.
+
+### Boundary smoothing
+
+`evaluateFractalVertex` допускает детерминированный `smoothingTarget` и `smoothingWeight`.
+
+Smoothing target должен определяться из canonical procedural context, а не из текущего render mesh, camera или LOD. В демонстрационном Studio smoothing просто возвращает rough vertex к smooth base deformation, позволяя наглядно регулировать степень шероховатости.
+
+В дальнейшем fractalizer может вычислять target из более богатого контекста интерфейса/соседства, но этот контекст обязан быть одинаковым для общей вершины.
+
+### Persistent displacement после взаимодействия
+
+Воздействие может дополнительно сместить вершину относительно канонической процедурной геометрии.
+
+Такой offset:
+
+- применяется **после** procedural deformation/smoothing;
+- хранится по canonical vertex identity;
+- является persistent индивидуализированным состоянием;
+- переживает WorldStore save/load;
+- является причиной FractalRing materialization.
+
+Следовательно impact displacement — не texture/displacement-map renderer'а, а часть реальной геометрии материи.
+
+### Диагностика
+
+`evaluateFractalVertex` возвращает не только конечную coordinate, но и decomposition:
+
+- `basePosition`;
+- `randomOffset`;
+- `procedurallyRoughPosition`;
+- `smoothingTarget`;
+- `smoothedPosition`;
+- `interactionOffset`;
+- `position`.
+
+Это позволяет редактору объяснять, **почему именно эта вершина находится в данной точке**.
+
+Experiment Studio использует тот же pipeline для proven patches. Ползунки procedural RND amplitude и boundary smoothing меняют только deformed view; reference topology и interface extraction остаются неизменными.

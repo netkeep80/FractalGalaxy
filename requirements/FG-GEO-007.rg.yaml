@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-GEO-007
+normative: "### FG-GEO-007 — Кубическая сетка является грубым фрактальным каркасом\n\nКубическая octree-сетка должна задавать каноническую топологию, адресацию и исходные shared vertices, но не должна считаться окончательной геометрией материи. Фактическая граница вещества может отклоняться от этого каркаса посредством авторитетной процедурной и persistent vertex deformation."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-GEO-001
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

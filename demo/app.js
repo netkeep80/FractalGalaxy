@@ -20,7 +20,8 @@ import {
   octreeBoundsForPath,
   extractMaterialInterface,
   buildSurfacePatchGeometry,
-  triangulateSurfacePatchGeometry
+  triangulateSurfacePatchGeometry,
+  makeFractalVertexDeformation
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -44,6 +45,8 @@ const lab = {
   mediumA: $('mediumA'),
   mediumB: $('mediumB'),
   deformBlend: $('deformBlend'),
+  rndAmplitude: $('rndAmplitude'),
+  smoothingWeight: $('smoothingWeight'),
   showTriangulation: $('showTriangulation')
 };
 
@@ -323,10 +326,20 @@ function facePoint(axis, side, u, v) {
   return facePointForBounds({ min: [-1,-1,-1], max: [1,1,1] }, axis, side, u, v);
 }
 
-function blendedDeformation(point) {
+function baseGeometryDeformation(point) {
   const blend = Number(lab.deformBlend.value);
   const sphere = cubeToSphereDeformation(point);
   return point.map((value, i) => value + (sphere[i] - value) * blend);
+}
+
+function currentVertexDeformation() {
+  return makeFractalVertexDeformation({
+    baseDeformation: baseGeometryDeformation,
+    seed: parseSeed(),
+    randomAmplitude: Number(lab.rndAmplitude.value),
+    smoothingWeight: Number(lab.smoothingWeight.value),
+    smoothingTarget: ({ basePosition }) => basePosition
+  });
 }
 
 function rotateProject(point, canvasElement) {
@@ -396,7 +409,7 @@ function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, def
     axis,
     side,
     patch,
-    deformation: deformed ? point => blendedDeformation(point) : point => point
+    deformation: deformed ? currentVertexDeformation() : point => point
   });
   const sourceVertices = deformed ? geometry.deformedVertices : geometry.referenceVertices;
   const points = sourceVertices.map(point => rotateProject(point, canvasElement));
@@ -600,6 +613,8 @@ function renderGeometryLab() {
   $('visitedPairs').textContent = String(currentSurfaceExtraction.stats.visitedPairs ?? 0);
   $('interfaceDecision').textContent = describeInterface(rootDecision);
   $('deformOut').value = Math.round(Number(lab.deformBlend.value) * 100) + '%';
+  $('rndOut').value = Number(lab.rndAmplitude.value).toFixed(3);
+  $('smoothOut').value = Math.round(Number(lab.smoothingWeight.value) * 100) + '%';
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
     ? 'REFINE'
