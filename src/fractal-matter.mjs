@@ -1,3 +1,7 @@
+import { homogeneousVolume, mixedVolume } from './volume/classification.mjs';
+import { refineVolumeClassification } from './volume/refinement.mjs';
+import { octreeBoundsForPath } from './volume/octree-address.mjs';
+
 const U32 = 0x1_0000_0000;
 export const E0_VERSION = 'e0-prototype-1';
 export const DOMAIN = Object.freeze({ min: -1, max: 1, depth: 5 });
@@ -239,6 +243,109 @@ export function validateWorld(world) {
 }
 
 
+function effectiveMediumKey(value) {
+  if (value.kind === 'EMPTY') return 'EMPTY';
+  if (value.kind === 'SOLID') return `SOLID:${value.materialId}:${value.density}`;
+  throw new Error('unsupported material value for volume classification');
+}
+
+function deepestAncestorEdit(edits, path) {
+  let winner = null;
+  for (const edit of edits) {
+    if (isPrefix(edit.path, path) && (!winner || edit.path.length > winner.path.length)) {
+      winner = edit;
+    }
+  }
+  return winner;
+}
+
+function hasDescendantEdit(edits, path) {
+  return edits.some(edit => edit.path.length > path.length && isPrefix(path, edit.path));
+}
+
+export function classifyMaterialRegion(material, path = [], { maxDepth = DOMAIN.depth } = {}) {
+  if (!material?.gamma || material.gamma.version !== E0_VERSION) {
+    throw new Error('unsupported material Γ');
+  }
+  if (!Array.isArray(path) || path.some(branch => !Number.isInteger(branch) || branch < 0 || branch > 7)) {
+    throw new Error('invalid material region path');
+  }
+  if (!Number.isInteger(maxDepth) || maxDepth < path.length || maxDepth > DOMAIN.depth) {
+    throw new Error('unsupported material classification depth');
+  }
+
+  const edits = normalizeEdits(material.edits ?? []);
+  const gamma = material.gamma;
+
+  return refineVolumeClassification({
+    path,
+    maxDepth,
+    probe(currentPath) {
+      const ancestor = deepestAncestorEdit(edits, currentPath);
+      const descendants = hasDescendantEdit(edits, currentPath);
+
+      if (descendants) {
+        return { classification: mixedVolume(), reason: 'descendant-edit' };
+      }
+
+      if (ancestor) {
+        return {
+          classification: homogeneousVolume(effectiveMediumKey(ancestor.value)),
+          reason: 'D-override'
+        };
+      }
+
+      if (gamma.fixture === 'solid') {
+        return {
+          classification: homogeneousVolume('SOLID:rock:1'),
+          reason: 'solid-fixture'
+        };
+      }
+
+      const bounds = octreeBoundsForPath(currentPath, { min: DOMAIN.min, max: DOMAIN.max });
+      const hMin = (-8 / 128) + (gamma.alphaNeighbor / 16);
+      const hMax = (7 / 128) + (gamma.alphaNeighbor / 16);
+
+      if (bounds.max[2] <= hMin) {
+        return {
+          classification: homogeneousVolume('SOLID:rock:1'),
+          reason: 'height-global-solid-bound'
+        };
+      }
+      if (bounds.min[2] > hMax) {
+        return {
+          classification: homogeneousVolume('EMPTY'),
+          reason: 'height-global-empty-bound'
+        };
+      }
+
+      if (currentPath.length === DOMAIN.depth) {
+        const state = stateForPath(gamma.rootSeed, currentPath);
+        const h = (((state & 15) - 8) / 128) + (gamma.alphaNeighbor / 16);
+        if (bounds.max[2] <= h) {
+          return {
+            classification: homogeneousVolume('SOLID:rock:1'),
+            reason: 'height-leaf-solid'
+          };
+        }
+        if (bounds.min[2] > h) {
+          return {
+            classification: homogeneousVolume('EMPTY'),
+            reason: 'height-leaf-empty'
+          };
+        }
+        return {
+          classification: mixedVolume(),
+          reason: 'height-crosses-leaf'
+        };
+      }
+
+      return { classification: mixedVolume(), reason: 'needs-refinement' };
+    }
+  });
+}
+
+
 // E1 sparse FractalRing overlay primitives.
 // Kept behind the E0 facade so existing tests and demos remain source-compatible.
 export {
@@ -308,3 +415,13 @@ export {
   translateMaterialPoint
 } from './geometry/deformation.mjs';
 
+
+
+export { refineVolumeClassification } from './volume/refinement.mjs';
+export {
+  octreePathToGrid,
+  octreeGridToPath,
+  adjacentOctreePath,
+  octreeBoundsForPath,
+  octreeCellCenter
+} from './volume/octree-address.mjs';

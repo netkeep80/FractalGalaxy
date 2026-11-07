@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-WEB-003
+normative: "### FG-WEB-003 — Live probe процедурной границы\n\nSurface / Geometry Lab должен позволять выбрать procedural octree-ячейку из текущего материального эксперимента, адресно определить соседа выбранной грани и классифицировать effective material field с обеих сторон через ядро. Интерфейс должен показывать пути A/B, Homogeneous/Mixed, решение NONE/PRESENT/REFINE и фактическую диагностическую стоимость refinement без materialization FractalRing ради просмотра."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-WEB-002
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/index.html"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/web-demo.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

@@ -77,3 +77,38 @@ Web Studio содержит две синхронные 3D-проекции од
 - одинаковую camera orientation/zoom для reference и deformed views.
 
 Эта панель является экспериментальным представлением модели, а не отдельной реализацией surface semantics: решения интерфейса и octant selection вызывают функции `src/surface/interface.mjs`, а deformation — `src/geometry/deformation.mjs`.
+
+## 9. Live procedural probe
+
+Surface / Geometry Lab может работать не только с вручную заданными средами, но и с текущим E0 material experiment.
+
+Последовательность:
+
+```text
+click on material slice
+        ↓
+selected reference point
+        ↓
+octree address at probe depth
+        ↓
+same-depth neighbor by axis/side
+        ↓
+adaptive classifyMaterialRegion(A/B)
+        ↓
+Homogeneous / Mixed
+        ↓
+NONE / PRESENT / REFINE
+```
+
+`classifyMaterialRegion` не создаёт FractalRing. Он использует виртуальное octree refinement до E0 depth 5 и прекращает уточнение раньше, если может доказать однородность:
+
+- полный `solid` fixture;
+- однозначный D override без более глубоких D;
+- аналитическая высотная граница, целиком лежащая выше или ниже области;
+- согласованная агрегация восьми дочерних классификаций.
+
+Диагностика возвращает число просмотренных виртуальных узлов, число terminal nodes, максимальную достигнутую глубину и причины остановки.
+
+Адресный сосед той же глубины вычисляется непосредственно из octree path. Если сосед выходит за пределы конечного E0 reference domain, только Web Lab трактует внешнюю сторону как EMPTY для демонстрации внешней поверхности; это не является общим правилом WorldStore.
+
+Такой режим позволяет видеть не только итог `PRESENT/REFINE`, но и **почему** интерфейс доказан либо требует дальнейшей volume refinement.

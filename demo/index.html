@@ -124,6 +124,19 @@
         <h3>Интерфейс</h3>
 
         <label>
+          <span>Источник классификации</span>
+          <select id="interfaceSource">
+            <option value="procedural">Live: текущий procedural M</option>
+            <option value="manual">Manual: заданные среды</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Глубина выбранной ячейки <output id="probeDepthOut">2</output></span>
+          <input id="probeDepth" type="range" min="1" max="4" value="2" step="1">
+        </label>
+
+        <label>
           <span>Ось грани</span>
           <select id="faceAxis">
             <option value="x">X</option>
@@ -166,12 +179,23 @@
         </label>
 
         <div class="lab-readout">
+          <div><span>Selected cell A</span><strong id="selectedCell">—</strong></div>
+          <div><span>Neighbor cell B</span><strong id="neighborCell">—</strong></div>
+          <div><span>Classification A</span><strong id="classificationA">—</strong></div>
+          <div><span>Classification B</span><strong id="classificationB">—</strong></div>
+          <div><span>Refinement cost A</span><strong id="refinementA">—</strong></div>
+          <div><span>Refinement cost B</span><strong id="refinementB">—</strong></div>
           <div><span>A incident octants</span><strong id="incidentA">—</strong></div>
           <div><span>B incident octants</span><strong id="incidentB">—</strong></div>
           <div><span>Surface patches</span><strong id="surfacePatches">4</strong></div>
           <div><span>Decision</span><strong id="interfaceDecision">—</strong></div>
         </div>
 
+        <p class="note">
+          В режиме <strong>Live</strong> клик по верхнему 2D-срезу выбирает procedural cell.
+          Классификатор вычисляет обе стороны грани до E0 depth 5 и показывает фактическую
+          стоимость refinement. Выход за границу E0 domain в этой лаборатории считается EMPTY.
+        </p>
         <p class="note">
           Перетаскивайте мышью любую 3D-проекцию для вращения. Колесо меняет масштаб.
           Обе проекции используют одну камеру.
@@ -198,7 +222,7 @@
 
     <div class="explain-strip">
       <div><strong>1</strong><span>Octree задаёт адрес и соседство.</span></div>
-      <div><strong>2</strong><span>Volume model классифицирует среду.</span></div>
+      <div><strong>2</strong><span>Volume model лениво доказывает Homogeneous/Mixed.</span></div>
       <div><strong>3</strong><span>Различие сред создаёт interface.</span></div>
       <div><strong>4</strong><span>Surface quadtree уточняет только interface.</span></div>
       <div><strong>5</strong><span>Φ искривляет геометрию, не меняя topology.</span></div>

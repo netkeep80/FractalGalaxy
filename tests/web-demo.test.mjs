@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-test('GitHub Pages Studio publishes the complete source module graph and E1 surface/geometry lab', async () => {
+test('GitHub Pages Studio publishes live procedural surface/geometry probing', async () => {
   const appUrl = new URL('../demo/app.js', import.meta.url);
   execFileSync(process.execPath, ['--check', fileURLToPath(appUrl)], { stdio: 'pipe' });
 
@@ -21,28 +21,27 @@ test('GitHub Pages Studio publishes the complete source module graph and E1 surf
   assert.match(html, /<canvas id="view"/);
   assert.match(html, /<canvas id="referenceView"/);
   assert.match(html, /<canvas id="deformedView"/);
-  assert.match(html, /id="mediumA"/);
-  assert.match(html, /id="mediumB"/);
+  assert.match(html, /id="interfaceSource"/);
+  assert.match(html, /id="probeDepth"/);
+  assert.match(html, /id="classificationA"/);
+  assert.match(html, /id="refinementA"/);
   assert.match(html, /type="module" src="\.\/app\.js"/);
 
   assert.match(app, /from '\.\/src\/fractal-matter\.mjs'/);
-  assert.match(app, /splitMaterial/);
-  assert.match(app, /queryMaterial/);
-  assert.match(app, /integrateMass/);
-  assert.match(app, /classifyMaterialInterface/);
-  assert.match(app, /incidentOctantsForFace/);
-  assert.match(app, /cubeToSphereDeformation/);
+  assert.match(app, /classifyMaterialRegion/);
+  assert.match(app, /adjacentOctreePath/);
+  assert.match(app, /octreeBoundsForPath/);
+  assert.match(app, /selectedPoint/);
   assert.match(app, /renderGeometryLab/);
+  assert.match(app, /OUTSIDE → EMPTY/);
   assert.match(css, /\.lab-grid/);
   assert.match(css, /\.interface-badge/);
 
-  assert.match(facade, /from '\.\/procedural\/source-ref\.mjs'/);
-  assert.match(facade, /from '\.\/rings\/fractal-ring\.mjs'/);
-  assert.match(facade, /from '\.\/storage\/world-store\.mjs'/);
   assert.match(facade, /from '\.\/surface\/interface\.mjs'/);
   assert.match(facade, /from '\.\/geometry\/deformation\.mjs'/);
+  assert.match(facade, /from '\.\/volume\/refinement\.mjs'/);
+  assert.match(facade, /from '\.\/volume\/octree-address\.mjs'/);
   assert.match(workflow, /cp -R src\/\. \.pages\/src\//);
-  assert.doesNotMatch(workflow, /cp src\/fractal-matter\.mjs \.pages\/src\//);
   assert.match(workflow, /deploy-pages/);
 
   const temp = await mkdtemp(join(tmpdir(), 'fractal-galaxy-pages-'));
@@ -51,9 +50,8 @@ test('GitHub Pages Studio publishes the complete source module graph and E1 surf
     await cp(new URL('../src/', import.meta.url), assembledSrc, { recursive: true });
     const deployedFacade = pathToFileURL(join(assembledSrc, 'fractal-matter.mjs')).href;
     const module = await import(deployedFacade);
-    assert.equal(typeof module.makeProceduralRef, 'function');
-    assert.equal(typeof module.makeMemoryWorldStore, 'function');
-    assert.equal(typeof module.resolveM, 'function');
+    assert.equal(typeof module.classifyMaterialRegion, 'function');
+    assert.equal(typeof module.adjacentOctreePath, 'function');
     assert.equal(typeof module.classifyMaterialInterface, 'function');
     assert.equal(typeof module.cubeToSphereDeformation, 'function');
   } finally {

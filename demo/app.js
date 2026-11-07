@@ -14,7 +14,10 @@ import {
   incidentOctantsForFace,
   makeReferenceFacePatch,
   subdivideReferenceFacePatch,
-  cubeToSphereDeformation
+  cubeToSphereDeformation,
+  classifyMaterialRegion,
+  adjacentOctreePath,
+  octreeBoundsForPath
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -31,6 +34,8 @@ const controls = {
 };
 
 const lab = {
+  source: $('interfaceSource'),
+  probeDepth: $('probeDepth'),
   axis: $('faceAxis'),
   side: $('faceSide'),
   mediumA: $('mediumA'),
@@ -39,6 +44,8 @@ const lab = {
 };
 
 $('version').textContent = E0_VERSION;
+
+let selectedPoint = [0, 0, 0];
 
 const ownerColors = {
   left: [67, 213, 255],
@@ -117,6 +124,7 @@ function renderMaterialView() {
 
   $('alphaOut').value = controls.alpha.value;
   const z = Number(controls.zSlice.value);
+  selectedPoint = [selectedPoint[0], selectedPoint[1], z];
   $('zOut').value = z.toFixed(2);
 
   const size = 128;
@@ -168,7 +176,8 @@ function renderMaterialView() {
 
   updateLegend();
   updateMasses(model);
-  inspect(model, [0, 0, z]);
+  inspect(model, selectedPoint);
+  renderGeometryLab();
 }
 
 function updateLegend() {
@@ -228,7 +237,9 @@ canvas.addEventListener('click', event => {
   const x = -1 + 2 * ((event.clientX - rect.left) / rect.width);
   const y = 1 - 2 * ((event.clientY - rect.top) / rect.height);
   const z = Number(controls.zSlice.value);
-  inspect(buildModel(), [x, y, z]);
+  selectedPoint = [x, y, z];
+  inspect(buildModel(), selectedPoint);
+  renderGeometryLab();
 });
 
 for (const input of Object.values(controls)) {
@@ -243,6 +254,7 @@ $('reset').addEventListener('click', () => {
   controls.fixture.value = 'height';
   controls.editD.checked = false;
   controls.mode.value = 'matter';
+  selectedPoint = [0, 0, 0];
   renderMaterialView();
 });
 
@@ -257,14 +269,53 @@ function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
 }
 
-function facePoint(axis, side, u, v) {
-  if (axis === 'x') return [side, u, v];
-  if (axis === 'y') return [u, side, v];
-  return [u, v, side];
+function mediumLabel(medium) {
+  if (medium === 'EMPTY') return 'EMPTY';
+  const match = /^SOLID:([^:]+):(.+)$/.exec(medium ?? '');
+  return match ? `${match[1]} ρ=${match[2]}` : String(medium);
 }
 
-function octantForPoint([x, y, z]) {
-  return (x >= 0 ? 1 : 0) + (y >= 0 ? 2 : 0) + (z >= 0 ? 4 : 0);
+function classificationLabel(result) {
+  const classification = result.classification ?? result;
+  return classification.kind === 'HOMOGENEOUS'
+    ? `HOMOGENEOUS · ${mediumLabel(classification.medium)}`
+    : 'MIXED';
+}
+
+function refinementLabel(result) {
+  if (!result?.stats) return 'manual';
+  return `nodes=${result.stats.inspectedNodes}, depth=${result.stats.deepestDepth}`;
+}
+
+function currentProbeContext() {
+  const depth = Number(lab.probeDepth.value);
+  const axis = lab.axis.value;
+  const side = Number(lab.side.value);
+  const pathA = addressForPoint(selectedPoint, depth).path;
+  const pathB = adjacentOctreePath(pathA, axis, side);
+  return {
+    depth,
+    axis,
+    side,
+    pathA,
+    pathB,
+    boundsA: octreeBoundsForPath(pathA, { min: -1, max: 1 }),
+    boundsB: pathB ? octreeBoundsForPath(pathB, { min: -1, max: 1 }) : null
+  };
+}
+
+function facePointForBounds(bounds, axis, side, u, v) {
+  const ai = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+  const other = [0, 1, 2].filter(index => index !== ai);
+  const point = [0, 0, 0];
+  point[ai] = side === 1 ? bounds.max[ai] : bounds.min[ai];
+  point[other[0]] = bounds.min[other[0]] + ((u + 1) / 2) * (bounds.max[other[0]] - bounds.min[other[0]]);
+  point[other[1]] = bounds.min[other[1]] + ((v + 1) / 2) * (bounds.max[other[1]] - bounds.min[other[1]]);
+  return point;
+}
+
+function facePoint(axis, side, u, v) {
+  return facePointForBounds({ min: [-1,-1,-1], max: [1,1,1] }, axis, side, u, v);
 }
 
 function blendedDeformation(point) {
@@ -319,35 +370,61 @@ function drawCubeGrid(context, canvasElement, deformed) {
   }
 }
 
+function drawBox(context, canvasElement, bounds, deformed, stroke = 'rgba(118,174,210,.46)', width = 1.2) {
+  const corners = [];
+  for (const x of [bounds.min[0], bounds.max[0]]) {
+    for (const y of [bounds.min[1], bounds.max[1]]) {
+      for (const z of [bounds.min[2], bounds.max[2]]) corners.push([x,y,z]);
+    }
+  }
+  for (let i = 0; i < corners.length; i++) {
+    for (let j = i + 1; j < corners.length; j++) {
+      const diff = corners[i].filter((value, axis) => value !== corners[j][axis]).length;
+      if (diff === 1) drawLine(context, canvasElement, corners[i], corners[j], { deformed, stroke, width });
+    }
+  }
+}
+
 function drawSelectedFace(context, canvasElement, deformed) {
-  const axis = lab.axis.value;
-  const side = Number(lab.side.value);
+  const probe = currentProbeContext();
+  const { axis, side, pathA, boundsA } = probe;
   const stroke = 'rgba(102, 235, 190, .95)';
 
+  drawBox(context, canvasElement, boundsA, deformed, 'rgba(92,176,211,.62)', 1.4);
+  if (probe.boundsB) {
+    drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(255,185,88,.30)', 1);
+  }
+
   for (const t of [-1, 0, 1]) {
-    drawLine(context, canvasElement, facePoint(axis, side, -1, t), facePoint(axis, side, 1, t), {
-      deformed, stroke, width: t === 0 ? 2.2 : 1.7
-    });
-    drawLine(context, canvasElement, facePoint(axis, side, t, -1), facePoint(axis, side, t, 1), {
-      deformed, stroke, width: t === 0 ? 2.2 : 1.7
-    });
+    drawLine(
+      context,
+      canvasElement,
+      facePointForBounds(boundsA, axis, side, -1, t),
+      facePointForBounds(boundsA, axis, side, 1, t),
+      { deformed, stroke, width: t === 0 ? 2.2 : 1.7 }
+    );
+    drawLine(
+      context,
+      canvasElement,
+      facePointForBounds(boundsA, axis, side, t, -1),
+      facePointForBounds(boundsA, axis, side, t, 1),
+      { deformed, stroke, width: t === 0 ? 2.2 : 1.7 }
+    );
   }
 
   const incident = incidentOctantsForFace(axis, side);
-  const centers = [
-    [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]
-  ];
-
   context.font = '700 12px ui-monospace, SFMono-Regular, Menlo, monospace';
   context.textAlign = 'center';
   context.textBaseline = 'middle';
 
-  for (const [u, v] of centers) {
-    const source = facePoint(axis, side, u, v);
-    const branch = octantForPoint(source);
-    if (!incident.includes(branch)) continue;
-    const p = rotateProject(mapGeometry(source, deformed), canvasElement);
-    context.fillStyle = 'rgba(5, 15, 22, .82)';
+  for (const branch of incident) {
+    const childBounds = octreeBoundsForPath([...pathA, branch], { min: -1, max: 1 });
+    const childCenter = childBounds.min.map((value, i) => (value + childBounds.max[i]) / 2);
+    const ai = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+    childCenter[ai] = side === 1 ? boundsA.max[ai] : boundsA.min[ai];
+
+    const p = rotateProject(mapGeometry(childCenter, deformed), canvasElement);
+    context.fillStyle = 'rgba(5, 15, 22, .84)';
     context.beginPath();
     context.arc(p.x, p.y, 13, 0, Math.PI * 2);
     context.fill();
@@ -396,15 +473,42 @@ function describeInterface(result) {
 }
 
 function renderGeometryLab() {
-  const axis = lab.axis.value;
-  const side = Number(lab.side.value);
-  const a = classificationFor(lab.mediumA.value);
-  const b = classificationFor(lab.mediumB.value);
-  const decision = classifyMaterialInterface(a, b);
+  const probe = currentProbeContext();
+  const { axis, side, pathA, pathB } = probe;
+  const model = buildModel();
+  const live = lab.source.value === 'procedural';
+
+  let aResult;
+  let bResult;
+
+  if (live) {
+    aResult = classifyMaterialRegion(model.root, pathA, { maxDepth: 5 });
+    bResult = pathB
+      ? classifyMaterialRegion(model.root, pathB, { maxDepth: 5 })
+      : {
+          classification: homogeneousVolume('EMPTY'),
+          stats: { inspectedNodes: 0, deepestDepth: probe.depth, reasons: { 'outside-domain': 1 } },
+          outsideDomain: true
+        };
+  } else {
+    aResult = { classification: classificationFor(lab.mediumA.value) };
+    bResult = { classification: classificationFor(lab.mediumB.value) };
+  }
+
+  const decision = classifyMaterialInterface(aResult.classification, bResult.classification);
   const incidentA = incidentOctantsForFace(axis, side);
   const incidentB = incidentOctantsForFace(axis, -side);
   const patches = subdivideReferenceFacePatch(makeReferenceFacePatch());
 
+  lab.mediumA.disabled = live;
+  lab.mediumB.disabled = live;
+  $('probeDepthOut').value = String(probe.depth);
+  $('selectedCell').textContent = '[' + pathA.join(',') + ']';
+  $('neighborCell').textContent = pathB ? '[' + pathB.join(',') + ']' : 'OUTSIDE → EMPTY';
+  $('classificationA').textContent = classificationLabel(aResult);
+  $('classificationB').textContent = classificationLabel(bResult);
+  $('refinementA').textContent = refinementLabel(aResult);
+  $('refinementB').textContent = bResult.outsideDomain ? 'outside domain' : refinementLabel(bResult);
   $('incidentA').textContent = '[' + incidentA.join(', ') + ']';
   $('incidentB').textContent = '[' + incidentB.join(', ') + ']';
   $('surfacePatches').textContent = String(patches.length);
@@ -464,4 +568,3 @@ $('resetCamera').addEventListener('click', () => {
 });
 
 renderMaterialView();
-renderGeometryLab();

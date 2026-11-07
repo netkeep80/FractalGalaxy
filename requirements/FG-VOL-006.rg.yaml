@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-VOL-006
+normative: "### FG-VOL-006 — Адаптивная классификация effective material field\n\nКлассификация procedural/material области должна уметь использовать прямые доказательства однородности и при необходимости лениво уточнять только виртуальные octree-потомки до заданной глубины. Результат должен сообщать итог Homogeneous/Mixed и диагностическую стоимость уточнения, не создавая FractalRing или иных persistent записей только ради классификации."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VOL-004
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/fractal-matter.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/volume/refinement.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/material-region.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

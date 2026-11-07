@@ -372,3 +372,14 @@ footer {
   .explain-strip { grid-template-columns: 1fr; }
   footer { padding: 0 16px 28px; flex-direction: column; }
 }
+
+
+.lab-controls select:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.lab-readout strong {
+  max-width: 170px;
+  overflow-wrap: anywhere;
+}
