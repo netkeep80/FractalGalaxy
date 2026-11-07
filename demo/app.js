@@ -34,8 +34,10 @@ import {
   ringVertexWorldPosition,
   worldGeometryOffsets,
   worldStoreStats,
-  geometryVertexOffsets
+  geometryVertexOffsets,
+  assembleProvenSurfaceMesh
 } from './src/fractal-matter.mjs';
+import {paintProvenSurface} from './studio-surface-renderer.mjs';
 import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from './studio-vertex-editor.mjs';
 import {createStudioHierarchyUI} from './studio-tree.mjs';
 import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
@@ -324,6 +326,8 @@ let selectedVertexReference=null;
 let activeImpactRingId=null;
 let lastInfluenceResult=null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
+let currentSurfaceMesh = { reference: null, deformed: null };
+let studioSurfaceMode = 'surface';
 
 function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
@@ -664,6 +668,53 @@ function updateVertexInspector() {
     Object.keys(geometryVertexOffsets(ring)).length===0||
     ringIdsForPhysicalParent(demoWorldStore,activeImpactRingId).length>0;
 }
+
+function drawProofGaps(context,canvasElement,bounds,axis,side,deformed){
+  const deform=deformed?currentVertexDeformation():point=>point;
+  context.save();
+  context.lineWidth=2;
+  context.setLineDash([6,5]);
+  context.strokeStyle='#f3b35c';
+  // No fill. These outlines identify unresolved proof regions, NOT material.
+  for(const item of currentSurfaceExtraction.unresolved){
+    const geo=buildSurfacePatchGeometry({bounds,axis,side,patch:item.patch,deformation:deform});
+    const projected=(deformed?geo.deformedVertices:geo.referenceVertices)
+      .map(point=>rotateProject(point,canvasElement));
+    context.beginPath();
+    context.moveTo(projected[0].x,projected[0].y);
+    for(const p of projected.slice(1))context.lineTo(p.x,p.y);
+    context.closePath();
+    context.stroke();
+  }
+  context.restore();
+}
+function drawProofSurface(context,canvasElement,deformed){
+  const probe=currentProbeContext();
+  const mesh=deformed?currentSurfaceMesh.deformed:currentSurfaceMesh.reference;
+  if(!mesh)return;
+  drawBox(context,canvasElement,probe.boundsA,deformed,'rgba(84,141,160,.25)',.8);
+  paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed});
+  drawProofGaps(context,canvasElement,probe.boundsA,probe.axis,probe.side,deformed);
+}
+function surfaceProofLabel(mesh){
+  if(!mesh)return '—';
+  if(mesh.stats.unresolvedPatches){
+    return mesh.stats.provenPatches
+      ? tr('studio.surface.partial')
+      : tr('studio.surface.undetermined');
+  }
+  return mesh.stats.provenPatches
+    ? tr('studio.surface.proven')
+    : tr('studio.surface.absent');
+}
+function refreshSurfaceDisplayInfo(){
+  const mesh=currentSurfaceMesh.deformed;
+  if(!mesh)return;
+  $('studioSurfaceStatus').textContent=surfaceProofLabel(mesh);
+  $('studioMeshTriangles').textContent=String(mesh.triangles.length);
+  $('studioMeshVertices').textContent=String(mesh.vertices.length);
+}
+
 function drawGeometry(canvasElement, deformed) {
   const context = canvasElement.getContext('2d');
   context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -677,10 +728,11 @@ function drawGeometry(canvasElement, deformed) {
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-  if (lab.showReferenceGrid.checked) drawCubeGrid(context, canvasElement, deformed);
-  else drawContextHierarchy(context, canvasElement, deformed);
-  drawSelectedFace(context, canvasElement, deformed);
-  drawAxes(context, canvasElement, deformed);
+  if(lab.showReferenceGrid.checked)drawCubeGrid(context,canvasElement,deformed);
+  else if(studioSurfaceMode==='debug')drawContextHierarchy(context,canvasElement,deformed);
+  if(studioSurfaceMode==='surface')drawProofSurface(context,canvasElement,deformed);
+  else drawSelectedFace(context,canvasElement,deformed);
+  drawAxes(context,canvasElement,deformed);
   if(deformed)drawEditableVertices(context,canvasElement);
 }
 
@@ -772,6 +824,15 @@ function renderGeometryLab() {
     ? `${tr('studio.impact.active')} · ${tr('studio.impact.excess')}=${impact.result.excess.toFixed(3)}`
     : tr('studio.impact.blocked');
   $('impactOffset').textContent = '[' + impact.result.offset.map(value => value.toFixed(3)).join(', ') + ']';
+
+  const geometryOptions={
+    extraction:currentSurfaceExtraction,bounds:probe.boundsA,axis,side
+  };
+  currentSurfaceMesh={
+    reference:assembleProvenSurfaceMesh({...geometryOptions}),
+    deformed:assembleProvenSurfaceMesh({...geometryOptions,deformation:currentVertexDeformation()})
+  };
+  refreshSurfaceDisplayInfo();
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
     ? 'REFINE'
@@ -913,6 +974,10 @@ function createStudioWorkspace() {
         <button type="button" data-view="deformed">Деформация</button>
         <button type="button" data-view="split">Сравнение</button>
       </div>
+      <div class="studio-surface-modes" role="group" aria-label="Режим поверхности">
+        <button type="button" data-surface-mode="surface">Поверхность</button>
+        <button type="button" data-surface-mode="debug">Диагностика</button>
+      </div>
       <label class="studio-language"><span>Язык интерфейса</span>
         <select id="studioLanguage" aria-label="Язык интерфейса"><option value="ru">Русский</option><option value="en">English</option></select>
       </label>
@@ -922,6 +987,11 @@ function createStudioWorkspace() {
         <span id="studioVertexEditLabel">Редактировать вершины</span></label>
       <button type="button" id="studioSplitRing" disabled>Разделить кольцо</button>
       <span id="studioVertexState" role="status"></span>
+    </div>
+    <div class="studio-surface-legend">
+      <span class="studio-swatch-proven" id="studioLegendProven">Доказанная поверхность</span>
+      <span class="studio-swatch-unresolved" id="studioLegendUnresolved">Не определено</span>
+      <strong id="studioSurfaceStatus" role="status">—</strong>
     </div>
     <div class="studio-viewports"></div>
     <p class="studio-picking-help" id="studioPickingHelp"></p>
@@ -954,6 +1024,12 @@ function createStudioWorkspace() {
       <output id="studioVertexKey">—</output>
       <span id="studioRingCountLabel">Колец</span>
       <output id="studioRingCount">0</output>
+    </div>
+    <div class="studio-mesh-readout">
+      <span id="studioTrianglesLabel">Треугольников</span>
+      <output id="studioMeshTriangles">0</output>
+      <span id="studioVerticesLabel">Канонических вершин</span>
+      <output id="studioMeshVertices">0</output>
     </div>
     <h4 id="studioDiagnosticsHeading">Состояние</h4>
   `;
@@ -992,6 +1068,24 @@ function createStudioWorkspace() {
   };
   for (const button of buttons) button.addEventListener('click', () => setMode(button.dataset.view));
   setMode('reference');
+  const renderButtons=[...views.querySelectorAll('button[data-surface-mode]')];
+  const setSurfaceMode=mode=>{
+    studioSurfaceMode=mode;
+    views.dataset.surfaceMode=mode;
+    for(const button of renderButtons){
+      button.setAttribute('aria-pressed',String(button.dataset.surfaceMode===mode));
+    }
+    renderGeometryLab();
+  };
+  for(const button of renderButtons){
+    button.addEventListener('click',()=>setSurfaceMode(button.dataset.surfaceMode));
+  }
+  // The filled proof-aware surface, not debug patches, is the default.
+  studioSurfaceMode='surface';
+  views.dataset.surfaceMode='surface';
+  for(const button of renderButtons){
+    button.setAttribute('aria-pressed',String(button.dataset.surfaceMode==='surface'));
+  }
   $('studioVertexEdit').addEventListener('change',()=>{
     if($('studioVertexEdit').checked)setMode('deformed');
     renderGeometryLab();
@@ -1126,7 +1220,11 @@ function applyStudioLocale() {
     ['studio.vertex.edit', '#studioVertexEditLabel'],
     ['studio.vertex.split', '#studioSplitRing'],
     ['studio.vertex.key', '#studioVertexKeyLabel'],
-    ['studio.vertex.rings', '#studioRingCountLabel']
+    ['studio.vertex.rings', '#studioRingCountLabel'],
+    ['studio.surface.triangles', '#studioTrianglesLabel'],
+    ['studio.surface.vertices', '#studioVerticesLabel'],
+    ['studio.surface.legendProven', '#studioLegendProven'],
+    ['studio.surface.legendUnresolved', '#studioLegendUnresolved']
   ];
   for (const [key, selector, descendant] of direct) {
     const el = descendant
@@ -1163,6 +1261,11 @@ function applyStudioLocale() {
   document.querySelectorAll('.studio-view-modes button').forEach(button => {
     button.textContent = tr('studio.view.' + button.dataset.view);
   });
+  document.querySelector('.studio-surface-modes').setAttribute('aria-label',tr('studio.surface.group'));
+  document.querySelectorAll('.studio-surface-modes button').forEach(button=>{
+    button.textContent=tr('studio.surface.mode.'+button.dataset.surfaceMode);
+  });
+  refreshSurfaceDisplayInfo();
   document.querySelectorAll('.explain-strip div span').forEach((span,index) => {
     replaceVisibleText(span, tr('studio.explain'+(index+1)));
   });
