@@ -66,8 +66,9 @@ npm run demo
 6. [Происхождение требований](docs/requirements-rationale.md)
 7. [Матрица требований и проверок](docs/acceptance-matrix.md)
 8. [План проверок E0](docs/verification-plan.md)
+9. [E1: sparse FractalRing overlay](docs/e1-sparse-fractalring.md)
 
-Набор содержит 41 кандидатное native Requirement, включая `FG-PROT-001` для CPU-прототипа и `FG-WEB-001` для браузерного демо. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 53 кандидатных native Requirement, включая `FG-PROT-001` для CPU-прототипа и `FG-WEB-001` для браузерного демо. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
 
 ## Основные термины
 

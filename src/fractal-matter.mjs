@@ -237,3 +237,31 @@ export function validateWorld(world) {
   }
   return true;
 }
+
+
+// E1 sparse FractalRing overlay primitives.
+// Kept behind the E0 facade so existing tests and demos remain source-compatible.
+export {
+  normalizeProceduralAddress,
+  makeProceduralRef,
+  childProceduralRef,
+  parentProceduralRef,
+  proceduralRefKey,
+  sameProceduralRef
+} from './procedural/source-ref.mjs';
+
+export {
+  shouldMaterializeFractalRing,
+  makeFractalRing,
+  reparentFractalRing,
+  overrideFractalRing
+} from './rings/fractal-ring.mjs';
+
+export {
+  makeSparseRingStore,
+  putFractalRing,
+  getFractalRing,
+  ringsForProceduralSource,
+  ringsForPhysicalParent,
+  sparseRingCount
+} from './rings/sparse-ring-store.mjs';
