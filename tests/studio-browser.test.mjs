@@ -697,6 +697,13 @@ test('S3 acceptance: regional surface mode and canonical nonlinear topology grid
     assert.equal(regional.path,before.path);
     assert.equal(regional.mass,before.mass);
 
+    await setControl('fixture','height');
+    const procedural=await cdp.evaluate('(() => ({triangles:Number(document.getElementById("studioMeshTriangles").textContent),unresolved:Number(document.getElementById("studioRegionalUnresolved").textContent),status:document.getElementById("studioSurfaceStatus").textContent,path:document.getElementById("studioPath").textContent}))()');
+    assert.ok(procedural.triangles>0,'procedural regional view must retain proven geometry');
+    assert.ok(procedural.unresolved>0,'finite procedural regional proof must expose unresolved gaps');
+    assert.ok(procedural.status.length>0);
+    assert.equal(procedural.path,before.path);
+
     await cdp.evaluate(`(() => {
       window.__fgS3GridPaths=[];
       if(window.__fgS3GridCaptureInstalled)return;

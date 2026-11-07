@@ -57,6 +57,8 @@ function interpolatedDepth(points,p){
 // Returns +1 when a is consistently nearer than b over their projected overlap,
 // -1 when b is nearer, and 0 when they do not overlap in area or cross each other.
 function projectedDepthRelation(a,b){
+  if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
+    ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
   const overlap=triangleIntersectionPolygon(a.points,b.points);
   if(overlap.length<3||Math.abs(signedArea(overlap))<1e-6)return 0;
   const samples=[...overlap,{
@@ -150,6 +152,10 @@ export function prepareProofTriangles(mesh,project,{deformed=false}={}){
     }
     return Object.freeze({
       index,points:Object.freeze(points),
+      bounds:Object.freeze({
+        minX:Math.min(...points.map(p=>p.x)),maxX:Math.max(...points.map(p=>p.x)),
+        minY:Math.min(...points.map(p=>p.y)),maxY:Math.max(...points.map(p=>p.y))
+      }),
       depth:points.reduce((sum,p)=>sum+p.depth,0)/3,
       light:triangleLight(triangleNormal(spatial))
     });
