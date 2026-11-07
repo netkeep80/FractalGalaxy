@@ -30,6 +30,26 @@ function lineIntersection(a,b,c,d){
   const t=((c.x-a.x)*cdy-(c.y-a.y)*cdx)/denominator;
   return {x:a.x+t*abx,y:a.y+t*aby};
 }
+function separatedOnAxis(a,b,nx,ny){
+  if(Math.abs(nx)+Math.abs(ny)<1e-15)return false;
+  let amin=Infinity,amax=-Infinity,bmin=Infinity,bmax=-Infinity;
+  for(let i=0;i<3;i++){
+    const av=a[i].x*nx+a[i].y*ny,bv=b[i].x*nx+b[i].y*ny;
+    if(av<amin)amin=av;if(av>amax)amax=av;
+    if(bv<bmin)bmin=bv;if(bv>bmax)bmax=bv;
+  }
+  // Keep near-touching cases for the exact clipper; this is conservative.
+  return amax<bmin-1e-9||bmax<amin-1e-9;
+}
+function trianglesMayOverlapArea(a,b){
+  for(const points of [a,b]){
+    for(let i=0;i<3;i++){
+      const p=points[i],q=points[(i+1)%3];
+      if(separatedOnAxis(a,b,-(q.y-p.y),q.x-p.x))return false;
+    }
+  }
+  return true;
+}
 function triangleIntersectionPolygon(subject,clip){
   let polygon=subject.map(({x,y})=>({x,y}));
   const orientation=signedArea(clip)>=0?1:-1;
@@ -56,9 +76,14 @@ function interpolatedDepth(points,p){
 }
 // Returns +1 when a is consistently nearer than b over their projected overlap,
 // -1 when b is nearer, and 0 when they do not overlap in area or cross each other.
-function projectedDepthRelation(a,b){
+function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
+  if(!trianglesMayOverlapArea(a.points,b.points)){
+    if(counters)counters.satRejected++;
+    return 0;
+  }
+  if(counters)counters.clipCalls++;
   const overlap=triangleIntersectionPolygon(a.points,b.points);
   if(overlap.length<3||Math.abs(signedArea(overlap))<1e-6)return 0;
   const samples=[...overlap,{
@@ -184,6 +209,7 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
   let candidatePairs=0,relations=0,edges=0;
   let broadPhaseSortComparisons=0,broadPhaseExpireOperations=0;
   const broadPhaseCounters={indexVisits:0};
+  const narrowCounters={satRejected:0,clipCalls:0};
 
   const comparePair=(a,b)=>{
     // Exact narrow-phase must always receive a pair in the same canonical
@@ -192,7 +218,7 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     const first=triangles[a].index<=triangles[b].index?a:b;
     const second=first===a?b:a;
     candidatePairs++;
-    const relation=projectedDepthRelation(triangles[first],triangles[second]);
+    const relation=projectedDepthRelation(triangles[first],triangles[second],narrowCounters);
     if(!relation)return;
     relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
@@ -291,7 +317,9 @@ function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
     broadPhaseSortComparisons,
     broadPhaseIndexVisits:broadPhaseCounters.indexVisits,
     broadPhaseExpireOperations,
-    broadPhaseOperations:broadPhaseSortComparisons+broadPhaseCounters.indexVisits+broadPhaseExpireOperations
+    broadPhaseOperations:broadPhaseSortComparisons+broadPhaseCounters.indexVisits+broadPhaseExpireOperations,
+    satRejected:narrowCounters.satRejected,
+    clipCalls:narrowCounters.clipCalls
   });
   return order.map(index=>triangles[index]);
 }
@@ -332,6 +360,19 @@ export function proofGapBoundaryVertices({
     return Object.freeze({reference,position:Object.freeze([...position])});
   }));
 }
+const meshStyleCache=new WeakMap();
+function triangleStyles(mesh){
+  let cached=meshStyleCache.get(mesh);
+  if(cached)return cached;
+  cached=mesh.triangles.map(triangle=>{
+    if(!Array.isArray(triangle.normal)||triangle.normal.length!==3)return null;
+    const light=triangleLight(triangle.normal);
+    const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
+    return {light,fill:'rgb('+rgb.join(',')+')'};
+  });
+  meshStyleCache.set(mesh,cached);
+  return cached;
+}
 export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=true,stats=null}={}){
   if(!mesh||!Array.isArray(mesh.vertices)||!Array.isArray(mesh.triangles)
     ||typeof project!=='function')throw new Error('proven mesh and projection required');
@@ -346,24 +387,29 @@ export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=tr
     }
     return projected;
   });
+  const styles=triangleStyles(mesh);
   const prepared=mesh.triangles.map((triangle,index)=>{
     if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
-    const spatial=triangle.indices.map(i=>spatialVertices[i]);
     const points=triangle.indices.map(i=>projectedVertices[i]);
-    const normal=Array.isArray(triangle.normal)&&triangle.normal.length===3
-      ? triangle.normal
-      : triangleNormal(spatial);
-    return Object.freeze({
-      index,points:Object.freeze(points),
-      bounds:Object.freeze({
+    let style=styles[index];
+    if(!style){
+      const spatial=triangle.indices.map(i=>spatialVertices[i]);
+      const light=triangleLight(triangleNormal(spatial));
+      const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
+      style={light,fill:'rgb('+rgb.join(',')+')'};
+    }
+    return {
+      index,points,
+      bounds:{
         minX:Math.min(points[0].x,points[1].x,points[2].x),
         maxX:Math.max(points[0].x,points[1].x,points[2].x),
         minY:Math.min(points[0].y,points[1].y,points[2].y),
         maxY:Math.max(points[0].y,points[1].y,points[2].y)
-      }),
+      },
       depth:(points[0].depth+points[1].depth+points[2].depth)/3,
-      light:triangleLight(normal)
-    });
+      light:style.light,
+      fill:style.fill
+    };
   });
   return visibilityOrder(prepared,{broadPhase,stats});
 }
@@ -371,9 +417,7 @@ export function paintProvenSurface(context,mesh,project,options={}){
   const tris=prepareProofTriangles(mesh,project,options);
   context.save();
   for(const t of tris){
-    const light=t.light;
-    const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
-    const fill='rgb('+rgb.join(',')+')';
+    const fill=t.fill;
     context.beginPath();
     context.moveTo(t.points[0].x,t.points[0].y);
     context.lineTo(t.points[1].x,t.points[1].y);
