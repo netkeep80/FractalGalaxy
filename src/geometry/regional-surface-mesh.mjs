@@ -10,6 +10,9 @@ function validate(extraction){
     throw new Error('regional extraction with present/unresolved required');
   }
 }
+function unresolvedCellDepth(extraction){
+  return Math.max(0,...(extraction.unresolvedCells??[]).map(item=>item.path.length));
+}
 
 export function assembleRegionalSurfaceMesh({
   extraction,deformation=identityDeformation,targetDepth=null
@@ -17,9 +20,10 @@ export function assembleRegionalSurfaceMesh({
   validate(extraction);
   if(typeof deformation!=='function')throw new Error('regional deformation must be a function');
   const all=[...extraction.present,...extraction.unresolved];
-  const deepest=all.length?Math.max(...all.map(item=>item.depth)):0;
+  const deepestProof=all.length?Math.max(...all.map(item=>item.depth)):0;
+  const deepest=Math.max(deepestProof,unresolvedCellDepth(extraction));
   const target=targetDepth===null?deepest:targetDepth;
-  if(!Number.isInteger(target)||target<deepest||target>5)throw new RangeError('regional targetDepth must cover proof depth and be <= 5');
+  if(!Number.isInteger(target)||target<deepest||target>5)throw new RangeError('regional targetDepth must cover proof/discovery depth and be <= 5');
 
   const vertices=[],triangles=[],patches=[];
   const byKey=new Map();
@@ -67,12 +71,17 @@ export function assembleRegionalSurfaceMesh({
       vertexIndices:Object.freeze([...new Set(remap)]),triangleIndices:Object.freeze(triIndices)
     }));
   }
+  const unresolvedCells=Object.freeze((extraction.unresolvedCells??[]).map(item=>Object.freeze({
+    ...item,path:Object.freeze([...item.path])
+  })));
   return Object.freeze({
     vertices:Object.freeze(vertices),triangles:Object.freeze(triangles),patches:Object.freeze(patches),
     unresolved:Object.freeze(extraction.unresolved.map(item=>Object.freeze({...item}))),
+    unresolvedCells,
     stats:Object.freeze({
       targetDepth:target,faceRecords:extraction.faces?.length??null,
       provenPatches:extraction.present.length,unresolvedPatches:extraction.unresolved.length,
+      unresolvedCells:unresolvedCells.length,
       vertices:vertices.length,triangles:triangles.length
     })
   });

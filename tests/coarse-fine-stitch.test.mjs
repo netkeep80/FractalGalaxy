@@ -89,3 +89,28 @@ test('S3-B1 rejects incomplete, duplicate and non-coplanar 1:4 seams',()=>{
     /plane|coplanar/i
   );
 });
+
+
+function invalidSeam(min,size){
+  const max=min.map(value=>value+size);
+  const half=size/2;
+  const fine=[];
+  for(const y of [min[1],min[1]+half])for(const z of [min[2],min[2]+half]){
+    fine.push({
+      bounds:{min:[max[0],y,z],max:[max[0]+half,y+half,z+half]},
+      axis:'x',side:-1
+    });
+  }
+  return {coarse:{bounds:{min,max},axis:'x',side:1},fineFaces:fine};
+}
+
+test('S3-B1 rejects non-dyadic and misaligned cubes when claiming E0 octree validation',()=>{
+  assert.throws(
+    ()=>stitchCoarseFineInterface(invalidSeam([-1,-1,-1],.75)),
+    /dyadic|octree size/i
+  );
+  assert.throws(
+    ()=>stitchCoarseFineInterface(invalidSeam([-.75,-.75,-.75],1)),
+    /aligned|octree grid/i
+  );
+});

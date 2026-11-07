@@ -54,3 +54,16 @@ S3-D replaces endpoint-only nonlinear support-grid chords. The displayed root to
 ### Regional rendering cost
 
 Regional Canvas rendering keeps the S2 overlap-correct visibility ordering. A projected triangle bounding-box broad phase now rejects obviously disjoint triangle pairs before polygon overlap/depth analysis. This is a rendering-cost optimization only: it does not change material proof, mesh topology or painter ordering for triangles whose projected bounds overlap.
+
+
+## Post-audit completion repair
+
+The full S3 adversarial audit exposed four integration gaps and one contract overclaim. The repaired completion candidate now uses one material-aware and canonical sampling model end to end:
+
+- Regional discovery starts from the finite configured root region, recursively subdivides materially MIXED cells within the E0 budget, and feeds the resulting non-overlapping leaves to the adaptive face extractor. MIXED leaves at the budget remain explicit unresolved coverage instead of disappearing.
+- Regional mesh sampling is promoted far enough to include persisted or currently editable canonical vertices. A saved offset therefore remains visible in Regional fill rather than only in the local selected-face mesh.
+- Regional unresolved face contours derive their perimeter tessellation from the actual regional mesh target depth. They no longer insert canonical samples that the neighboring proven edge does not contain.
+- Selected-face diagnostic lines and hierarchy boxes use the same canonical subdivided-line evaluator as the root support grid. Nonlinear deformation is evaluated at shared canonical crossings instead of drawing endpoint chords.
+- The 1:4 seam helper now enforces the stated E0 octree contract: dyadic size, global-domain bounds and grid alignment, in addition to cubic shape and exact 2×2 coverage.
+
+The browser acceptance captures actual triangle fill paths and actual diagnostic/gap stroke vertices. Removing Regional fill or reintroducing endpoint-only diagnostic chords is therefore observable by the normal suite.

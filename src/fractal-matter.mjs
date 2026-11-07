@@ -516,10 +516,15 @@ export {
 } from './surface/regional-extractor.mjs';
 
 export {
+  discoverAdaptiveRegionalLeaves,
   enumerateAdaptiveRegionalFacePairs,
-  extractAdaptiveRegionalMaterialInterfaces
+  extractAdaptiveRegionalMaterialInterfaces,
+  extractDiscoveredRegionalMaterialInterfaces
 } from './surface/adaptive-regional-extractor.mjs';
 
 export { stitchCoarseFineInterface } from './geometry/coarse-fine-stitch.mjs';
 export { assembleRegionalSurfaceMesh } from './geometry/regional-surface-mesh.mjs';
-export { buildCanonicalTopologyGrid } from './geometry/topology-grid.mjs';
+export {
+  buildCanonicalTopologyLines,
+  buildCanonicalTopologyGrid
+} from './geometry/topology-grid.mjs';

@@ -31,7 +31,7 @@ test('S3-B regional mesh integrates the adaptive 1:4 seam without T-junction ver
   const {coarse,fine,extraction}=setup();
   const mesh=assembleRegionalSurfaceMesh({extraction,targetDepth:3});
   assert.deepEqual(mesh.stats,{
-    targetDepth:3,faceRecords:8,provenPatches:4,unresolvedPatches:0,vertices:9,triangles:8
+    targetDepth:3,faceRecords:8,provenPatches:4,unresolvedPatches:0,unresolvedCells:0,vertices:9,triangles:8
   });
   assert.equal(new Set(mesh.vertices.map(v=>v.key)).size,9);
   assert.ok(mesh.vertices.every(v=>v.reference[0]===0));

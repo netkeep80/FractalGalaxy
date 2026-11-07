@@ -1,4 +1,4 @@
-import {DOMAIN,extractMaterialInterface} from '../fractal-matter.mjs';
+import {DOMAIN,classifyMaterialRegion,extractMaterialInterface} from '../fractal-matter.mjs';
 import {octreePathToGrid,octreeGridToPath} from '../volume/octree-address.mjs';
 
 const AXES=Object.freeze(['x','y','z']);
@@ -39,20 +39,6 @@ function boxAt(path,depth){
     max:[(g.x+1)*scale,(g.y+1)*scale,(g.z+1)*scale]
   };
 }
-function overlap1d(a0,a1,b0,b1){return [Math.max(a0,b0),Math.min(a1,b1)];}
-function adjacency(a,b){
-  for(let axis=0;axis<3;axis++){
-    let side=0;
-    if(a.max[axis]===b.min[axis])side=1;
-    else if(a.min[axis]===b.max[axis])side=-1;
-    else continue;
-    const tang=[0,1,2].filter(i=>i!==axis);
-    const u=overlap1d(a.min[tang[0]],a.max[tang[0]],b.min[tang[0]],b.max[tang[0]]);
-    const v=overlap1d(a.min[tang[1]],a.max[tang[1]],b.min[tang[1]],b.max[tang[1]]);
-    if(u[0]<u[1]&&v[0]<v[1])return {axis,tang,side,u,v};
-  }
-  return null;
-}
 function descendantForFace(owner,other,axis,side,targetDepth){
   if(owner.path.length===targetDepth)return [...owner.path];
   const scale=2**(targetDepth-owner.path.length);
@@ -64,57 +50,112 @@ function descendantForFace(owner,other,axis,side,targetDepth){
   coords[oi]=side===1?(ownerGrid[names[oi]]+1)*scale-1:ownerGrid[names[oi]]*scale;
   return octreeGridToPath({depth:targetDepth,x:coords[0],y:coords[1],z:coords[2]});
 }
-function faceKey(a,b,axis,side){
-  const left=side===1?a:b,right=side===1?b:a;
-  return axis+':'+key(left.path)+'>'+key(right.path);
-}
+function faceKey(a,b,axis){return axis+':'+key(a.path)+'>'+key(b.path);}
 function exteriorKey(a,axis,side){return axis+':'+key(a.path)+':'+(side<0?'-':'+')+':OUT';}
+function flatIndex(x,y,z,size){return x+size*(y+size*z);}
+
+export function discoverAdaptiveRegionalLeaves(material,{cellPaths,maxDepth=DOMAIN.depth}={}){
+  const roots=validateLeaves(cellPaths);
+  if(!Number.isInteger(maxDepth)||maxDepth<Math.max(...roots.map(path=>path.length))||maxDepth>DOMAIN.depth){
+    throw new RangeError('regional discovery maxDepth must cover roots and remain within E0 domain');
+  }
+  const leaves=[],unresolvedCells=[];
+  let inspectedCells=0;
+  const visit=path=>{
+    inspectedCells++;
+    const result=classifyMaterialRegion(material,path,{maxDepth:path.length});
+    if(result.classification.kind!=='MIXED'){
+      leaves.push(Object.freeze([...path]));
+      return;
+    }
+    if(path.length===maxDepth){
+      const record=Object.freeze({
+        path:Object.freeze([...path]),
+        classification:result.classification,
+        stats:result.stats
+      });
+      leaves.push(record.path);
+      unresolvedCells.push(record);
+      return;
+    }
+    for(let branch=0;branch<8;branch++)visit([...path,branch]);
+  };
+  for(const root of roots)visit(root);
+  leaves.sort(cmpPath);
+  unresolvedCells.sort((a,b)=>cmpPath(a.path,b.path));
+  return Object.freeze({
+    leaves:Object.freeze(leaves),
+    unresolvedCells:Object.freeze(unresolvedCells),
+    stats:Object.freeze({
+      rootCells:roots.length,
+      leaves:leaves.length,
+      unresolvedCells:unresolvedCells.length,
+      inspectedCells,
+      minLeafDepth:Math.min(...leaves.map(path=>path.length)),
+      maxLeafDepth:Math.max(...leaves.map(path=>path.length))
+    })
+  });
+}
 
 export function enumerateAdaptiveRegionalFacePairs(cellPaths){
   const leaves=validateLeaves(cellPaths);
   const maxLeafDepth=Math.max(...leaves.map(p=>p.length));
+  const size=2**maxLeafDepth;
   const boxes=leaves.map(path=>boxAt(path,maxLeafDepth));
-  const faces=[];
+  const owners=new Int32Array(size*size*size);
+  owners.fill(-1);
 
-  for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++){
-    const hit=adjacency(boxes[i],boxes[j]);
-    if(!hit)continue;
-    let a=boxes[i],b=boxes[j],side=hit.side;
-    if(side===-1){[a,b]=[b,a];side=1;}
-    const axis=AXES[hit.axis];
+  for(let owner=0;owner<boxes.length;owner++){
+    const box=boxes[owner];
+    for(let z=box.min[2];z<box.max[2];z++)
+      for(let y=box.min[1];y<box.max[1];y++)
+        for(let x=box.min[0];x<box.max[0];x++){
+          const index=flatIndex(x,y,z,size);
+          if(owners[index]!==-1&&owners[index]!==owner)throw new Error('adaptive region leaves overlap');
+          owners[index]=owner;
+        }
+  }
+
+  const internal=new Map(),exterior=new Map();
+  const coords=[0,0,0];
+  for(let z=0;z<size;z++)for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const owner=owners[flatIndex(x,y,z,size)];
+    if(owner<0)continue;
+    coords[0]=x;coords[1]=y;coords[2]=z;
+    for(let ai=0;ai<3;ai++){
+      const axis=AXES[ai];
+      if(coords[ai]===0)exterior.set(owner+'|'+axis+'|-1',{owner,axis,side:-1});
+      if(coords[ai]===size-1)exterior.set(owner+'|'+axis+'|1',{owner,axis,side:1});
+      if(coords[ai]===size-1)continue;
+      const next=[x,y,z];next[ai]++;
+      const other=owners[flatIndex(next[0],next[1],next[2],size)];
+      if(other<0||other===owner)continue;
+      internal.set(owner+'|'+other+'|'+axis,{lower:owner,upper:other,axis});
+    }
+  }
+
+  const faces=[];
+  for(const item of internal.values()){
+    const a=boxes[item.lower],b=boxes[item.upper],axis=item.axis;
     const proofDepth=Math.max(a.path.length,b.path.length);
     const pathA=descendantForFace(a,b,axis,1,proofDepth);
     const pathB=descendantForFace(b,a,axis,-1,proofDepth);
     faces.push(Object.freeze({
-      key:faceKey(a,b,axis,1),axis,side:1,
+      key:faceKey(a,b,axis),axis,side:1,
       rootPathA:Object.freeze([...a.path]),rootPathB:Object.freeze([...b.path]),
       pathA:Object.freeze(pathA),pathB:Object.freeze(pathB),
       coarseFine:a.path.length!==b.path.length,
       proofDepth
     }));
   }
-
-  const size=2**maxLeafDepth;
-  for(const leaf of boxes){
-    for(let ai=0;ai<3;ai++){
-      const axis=AXES[ai];
-      if(leaf.min[ai]===0){
-        faces.push(Object.freeze({
-          key:exteriorKey(leaf,axis,-1),axis,side:-1,
-          rootPathA:Object.freeze([...leaf.path]),rootPathB:null,
-          pathA:Object.freeze([...leaf.path]),pathB:null,
-          coarseFine:false,proofDepth:leaf.path.length
-        }));
-      }
-      if(leaf.max[ai]===size){
-        faces.push(Object.freeze({
-          key:exteriorKey(leaf,axis,1),axis,side:1,
-          rootPathA:Object.freeze([...leaf.path]),rootPathB:null,
-          pathA:Object.freeze([...leaf.path]),pathB:null,
-          coarseFine:false,proofDepth:leaf.path.length
-        }));
-      }
-    }
+  for(const item of exterior.values()){
+    const leaf=boxes[item.owner];
+    faces.push(Object.freeze({
+      key:exteriorKey(leaf,item.axis,item.side),axis:item.axis,side:item.side,
+      rootPathA:Object.freeze([...leaf.path]),rootPathB:null,
+      pathA:Object.freeze([...leaf.path]),pathB:null,
+      coarseFine:false,proofDepth:leaf.path.length
+    }));
   }
   faces.sort((a,b)=>a.key.localeCompare(b.key));
   return Object.freeze(faces);
@@ -166,6 +207,29 @@ export function extractAdaptiveRegionalMaterialInterfaces(material,{
       maxLeafDepth:Math.max(...leaves.map(p=>p.length)),
       facePairs:faces.length,internalFaces:faces.length-exteriorFaces,exteriorFaces,coarseFineFaces,
       provenPatches:present.length,unresolvedPatches:unresolved.length,visitedPairs,discardedPatches
+    })
+  });
+}
+
+export function extractDiscoveredRegionalMaterialInterfaces(material,{
+  cellPaths,maxDepth=DOMAIN.depth,outsideMedium='EMPTY'
+}={}){
+  const discovery=discoverAdaptiveRegionalLeaves(material,{cellPaths,maxDepth});
+  const extraction=extractAdaptiveRegionalMaterialInterfaces(material,{
+    cellPaths:discovery.leaves,maxDepth,outsideMedium
+  });
+  return Object.freeze({
+    ...extraction,
+    leaves:discovery.leaves,
+    unresolvedCells:discovery.unresolvedCells,
+    stats:Object.freeze({
+      ...extraction.stats,
+      rootCells:discovery.stats.rootCells,
+      discoveredLeaves:discovery.stats.leaves,
+      unresolvedCells:discovery.stats.unresolvedCells,
+      inspectedCells:discovery.stats.inspectedCells,
+      minLeafDepth:discovery.stats.minLeafDepth,
+      maxLeafDepth:discovery.stats.maxLeafDepth
     })
   });
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {cubeToSphereDeformation} from '../src/fractal-matter.mjs';
-import {buildCanonicalTopologyGrid} from '../src/geometry/topology-grid.mjs';
+import {buildCanonicalTopologyLines,buildCanonicalTopologyGrid} from '../src/geometry/topology-grid.mjs';
 
 test('S3-D topology grid shares one canonical vertex at every line intersection',()=>{
   const grid=buildCanonicalTopologyGrid({
@@ -44,4 +44,23 @@ test('S3-D grid is deterministic and validates sampling bounds',()=>{
   assert.deepEqual(b,a);
   assert.throws(()=>buildCanonicalTopologyGrid({steps:0}),/steps/);
   assert.throws(()=>buildCanonicalTopologyGrid({curveSubdivisions:0}),/curveSubdivisions/);
+});
+
+
+test('S3-D selected diagnostic lines share the exact nonlinear canonical crossing',()=>{
+  const geometry=buildCanonicalTopologyLines({
+    lines:[
+      {a:[-1,0,1],b:[1,0,1],name:'u'},
+      {a:[0,-1,1],b:[0,1,1],name:'v'}
+    ],
+    subdivisions:4,
+    deformation:point=>cubeToSphereDeformation(point)
+  });
+  const center=geometry.vertices.findIndex(vertex=>vertex.key==='0,0,1');
+  assert.ok(center>=0);
+  assert.deepEqual(geometry.vertices[center].position,[0,0,1]);
+  assert.ok(geometry.lines.every(line=>line.vertexIndices.includes(center)));
+  const endpoints=geometry.lines[0].vertexIndices.map(index=>geometry.vertices[index].position);
+  const chordMid=endpoints[0].map((value,i)=>(value+endpoints.at(-1)[i])/2);
+  assert.notDeepEqual(geometry.vertices[center].position,chordMid);
 });

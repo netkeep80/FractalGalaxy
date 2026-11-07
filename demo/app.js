@@ -37,8 +37,9 @@ import {
   geometryVertexOffsets,
   assembleProvenSurfaceMesh,
   octreePathsAtDepth,
-  extractRegionalMaterialInterfaces,
+  extractDiscoveredRegionalMaterialInterfaces,
   assembleRegionalSurfaceMesh,
+  buildCanonicalTopologyLines,
   buildCanonicalTopologyGrid
 } from './src/fractal-matter.mjs';
 import {paintProvenSurface,proofGapBoundaryVertices} from './studio-surface-renderer.mjs';
@@ -475,6 +476,72 @@ function mapGeometry(point, deformed) {
   return deformed ? currentVertexDeformation()(point) : point;
 }
 
+function canonicalReferenceDepth(reference) {
+  for (let depth = 0; depth <= REGIONAL_MAX_DEPTH; depth++) {
+    const step = 2 / (2 ** depth);
+    if (reference.every(value => {
+      const coordinate = (value + 1) / step;
+      return Math.abs(coordinate - Math.round(coordinate)) < 1e-9;
+    })) return depth;
+  }
+  return REGIONAL_MAX_DEPTH;
+}
+
+function canonicalKeyDepth(key) {
+  const reference = String(key).split(',').map(Number);
+  return reference.length === 3 && reference.every(Number.isFinite)
+    ? canonicalReferenceDepth(reference)
+    : 0;
+}
+
+function regionalSamplingTargetDepth(probe, extraction) {
+  const proofDepth = Math.max(
+    0,
+    ...(extraction.present ?? []).map(item => item.depth ?? 0),
+    ...(extraction.unresolved ?? []).map(item => item.depth ?? 0),
+    ...(extraction.unresolvedCells ?? []).map(item => item.path?.length ?? 0)
+  );
+  const persistedDepth = Math.max(
+    0,
+    ...Object.keys(persistentVertexOffsets()).map(canonicalKeyDepth)
+  );
+  const previewDepth = drag?.kind === 'vertex'
+    ? canonicalReferenceDepth(drag.reference)
+    : 0;
+  const editableDepth = $('studioVertexEdit')?.checked
+    ? Math.min(REGIONAL_MAX_DEPTH, probe.depth + 1)
+    : 0;
+  return Math.max(proofDepth, persistedDepth, previewDepth, editableDepth);
+}
+
+function drawCanonicalTopologyLines(
+  context,
+  canvasElement,
+  lines,
+  { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1, subdivisions = 2, dash = [] } = {}
+) {
+  const topology = buildCanonicalTopologyLines({
+    lines,
+    subdivisions,
+    deformation: deformed ? currentVertexDeformation() : point => point
+  });
+  context.save();
+  context.strokeStyle = stroke;
+  context.setLineDash(dash);
+  for (const line of topology.lines) {
+    const points = line.vertexIndices.map(index => {
+      const vertex = topology.vertices[index];
+      return rotateProject(deformed ? vertex.position : vertex.reference, canvasElement);
+    });
+    context.lineWidth = line.width ?? width;
+    context.beginPath();
+    context.moveTo(points[0].x, points[0].y);
+    for (const point of points.slice(1)) context.lineTo(point.x, point.y);
+    context.stroke();
+  }
+  context.restore();
+}
+
 function drawLine(context, canvasElement, a, b, { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1 } = {}) {
   const pa = rotateProject(mapGeometry(a, deformed), canvasElement);
   const pb = rotateProject(mapGeometry(b, deformed), canvasElement);
@@ -506,19 +573,28 @@ function drawCubeGrid(context, canvasElement, deformed) {
   }
 }
 
-function drawBox(context, canvasElement, bounds, deformed, stroke = 'rgba(118,174,210,.46)', width = 1.2) {
+function drawBox(
+  context, canvasElement, bounds, deformed,
+  stroke = 'rgba(118,174,210,.46)', width = 1.2, dash = []
+) {
   const corners = [];
   for (const x of [bounds.min[0], bounds.max[0]]) {
     for (const y of [bounds.min[1], bounds.max[1]]) {
       for (const z of [bounds.min[2], bounds.max[2]]) corners.push([x,y,z]);
     }
   }
+  const lines = [];
   for (let i = 0; i < corners.length; i++) {
     for (let j = i + 1; j < corners.length; j++) {
       const diff = corners[i].filter((value, axis) => value !== corners[j][axis]).length;
-      if (diff === 1) drawLine(context, canvasElement, corners[i], corners[j], { deformed, stroke, width });
+      if (diff === 1) lines.push({a:corners[i],b:corners[j]});
     }
   }
+  const edge = bounds.max[0] - bounds.min[0];
+  const subdivisions = Math.max(2, Math.round(edge * 4));
+  drawCanonicalTopologyLines(context, canvasElement, lines, {
+    deformed, stroke, width, subdivisions, dash
+  });
 }
 
 function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, deformed, fill, stroke, triangulate = false) {
@@ -582,22 +658,24 @@ function drawSelectedFace(context, canvasElement, deformed) {
     drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(128,160,246,.48)', 1);
   }
 
+  const selectedGridLines = [];
   for (const t of [-1, 0, 1]) {
-    drawLine(
-      context,
-      canvasElement,
-      facePointForBounds(boundsA, axis, side, -1, t),
-      facePointForBounds(boundsA, axis, side, 1, t),
-      { deformed, stroke, width: t === 0 ? 2.2 : 1.7 }
-    );
-    drawLine(
-      context,
-      canvasElement,
-      facePointForBounds(boundsA, axis, side, t, -1),
-      facePointForBounds(boundsA, axis, side, t, 1),
-      { deformed, stroke, width: t === 0 ? 2.2 : 1.7 }
-    );
+    selectedGridLines.push({
+      a:facePointForBounds(boundsA, axis, side, -1, t),
+      b:facePointForBounds(boundsA, axis, side, 1, t),
+      width:t === 0 ? 2.2 : 1.7
+    });
+    selectedGridLines.push({
+      a:facePointForBounds(boundsA, axis, side, t, -1),
+      b:facePointForBounds(boundsA, axis, side, t, 1),
+      width:t === 0 ? 2.2 : 1.7
+    });
   }
+  drawCanonicalTopologyLines(context, canvasElement, selectedGridLines, {
+    deformed,
+    stroke,
+    subdivisions:Math.max(2, 8 / (2 ** probe.depth))
+  });
 
   const incident = incidentOctantsForFace(axis, side);
   context.font = '700 12px ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -722,15 +800,21 @@ function drawProofSurface(context,canvasElement,deformed){
 }
 function drawRegionalProofGaps(context,canvasElement,deformed){
   const deform=deformed?currentVertexDeformation():point=>point;
+  const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
+  const targetDepth=mesh?.stats.targetDepth??0;
   context.save();
   context.lineWidth=1.8;
   context.setLineDash([6,5]);
   context.strokeStyle='#f3b35c';
   for(const item of currentRegionalExtraction.unresolved){
     const bounds=octreeBoundsForPath(item.pathA,{min:-1,max:1});
+    const tessellationDepth=targetDepth-item.depth;
+    if(!Number.isInteger(tessellationDepth)||tessellationDepth<0||tessellationDepth>4){
+      throw new Error('regional proof-gap sampling must match the regional mesh target depth');
+    }
     const boundary=proofGapBoundaryVertices({
       bounds,axis:item.axis,side:item.side,patch:makeReferenceFacePatch(),
-      deformation:deform,tessellationDepth:1
+      deformation:deform,tessellationDepth
     });
     const points=boundary.map(vertex=>rotateProject(deformed?vertex.position:vertex.reference,canvasElement));
     context.beginPath();context.moveTo(points[0].x,points[0].y);
@@ -738,6 +822,12 @@ function drawRegionalProofGaps(context,canvasElement,deformed){
     context.closePath();context.stroke();
   }
   context.restore();
+  for(const cell of currentRegionalExtraction.unresolvedCells??[]){
+    drawBox(
+      context,canvasElement,octreeBoundsForPath(cell.path,{min:-1,max:1}),deformed,
+      '#f3b35c',1.2,[4,4]
+    );
+  }
 }
 function drawRegionalProofSurface(context,canvasElement,deformed){
   const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
@@ -747,7 +837,8 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
 }
 function surfaceProofLabel(mesh){
   if(!mesh)return '—';
-  if(mesh.stats.unresolvedPatches){
+  const unresolved=(mesh.stats.unresolvedPatches??0)+(mesh.stats.unresolvedCells??0);
+  if(unresolved){
     return mesh.stats.provenPatches
       ? tr('studio.surface.partial')
       : tr('studio.surface.undetermined');
@@ -764,7 +855,9 @@ function refreshSurfaceDisplayInfo(){
   $('studioMeshTriangles').textContent=String(mesh.triangles.length);
   $('studioMeshVertices').textContent=String(mesh.vertices.length);
   if($('studioRegionalFaces'))$('studioRegionalFaces').textContent=String(currentRegionalExtraction.stats.facePairs??0);
-  if($('studioRegionalUnresolved'))$('studioRegionalUnresolved').textContent=String(currentRegionalExtraction.unresolved.length);
+  if($('studioRegionalUnresolved'))$('studioRegionalUnresolved').textContent=String(
+    currentRegionalExtraction.unresolved.length+(currentRegionalExtraction.unresolvedCells?.length??0)
+  );
 }
 
 function drawGeometry(canvasElement, deformed) {
@@ -894,16 +987,21 @@ function renderGeometryLab() {
     deformed:assembleProvenSurfaceMesh({...geometryOptions,deformation:currentVertexDeformation()})
   };
   if(live){
-    currentRegionalExtraction=extractRegionalMaterialInterfaces(model.root,{
+    currentRegionalExtraction=extractDiscoveredRegionalMaterialInterfaces(model.root,{
       cellPaths:octreePathsAtDepth(REGIONAL_CELL_DEPTH),
       maxDepth:REGIONAL_MAX_DEPTH,
       outsideMedium:'EMPTY'
     });
+    const regionalTargetDepth=regionalSamplingTargetDepth(probe,currentRegionalExtraction);
     currentRegionalMesh={
-      reference:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction}),
+      reference:assembleRegionalSurfaceMesh({
+        extraction:currentRegionalExtraction,
+        targetDepth:regionalTargetDepth
+      }),
       deformed:assembleRegionalSurfaceMesh({
         extraction:currentRegionalExtraction,
-        deformation:currentVertexDeformation()
+        deformation:currentVertexDeformation(),
+        targetDepth:regionalTargetDepth
       })
     };
   }else{
