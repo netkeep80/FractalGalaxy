@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-PROJECT-000
+normative: "### FG-PROJECT-000 — Требования к проекту FractalGalaxy\n\nПроект должен поддерживать управляемую разработку и проверку требований, воспроизводимые проверки точных ревизий и поставляемые экспериментальные артефакты. Эти требования процесса и поставки не должны смешиваться с функциональными свойствами самого движка."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/vision-and-scope.md"

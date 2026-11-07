@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SPL-002
 normative: "### FG-SPL-002 — Поточечный закон разделения\n\nПри разделении (Split) система должна ограничить **исходное**, а не заново пересчитанное результирующее M, включая все записи D, двумя непересекающимися масками, которые вместе покрывают сохраняемую область. На каждой сохраняемой материальной точке её значение M до/после должно совпадать, а правило общей плоскости назначает ровно одного владельца."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]
@@ -18,3 +18,7 @@ relations:
     target:
       kind: artifact
       path: "docs/requirements-rationale.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PHYS-000

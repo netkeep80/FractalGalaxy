@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-VERIFY-002
+normative: "### FG-VERIFY-002 — Иерархическая трассируемость требований\n\nНабор native Requirements должен иметь явную декомпозицию: ровно два корня FG-PRODUCT-000 и FG-PROJECT-000 не имеют derives_from, а каждый другой Requirement имеет ровно одного основного derives_from-родителя; родитель должен существовать, а цепь декомпозиции не должна содержать циклов и должна завершаться одним из двух корней."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VERIFY-000
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/requirements-hierarchy.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"

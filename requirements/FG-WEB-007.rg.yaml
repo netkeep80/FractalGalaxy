@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-WEB-007
+normative: "### FG-WEB-007 — Настройка процедурной roughness и smoothing в Studio\n\nExperiment Studio должен позволять визуально изменять procedural RND amplitude и boundary smoothing для surface geometry через тот же vertex-deformation API ядра. Изменение этих параметров должно одинаково отражаться на reference-linked deformed patches и не должно менять reference topology или interface extraction."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-WEB-006
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/index.html"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/web-demo.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

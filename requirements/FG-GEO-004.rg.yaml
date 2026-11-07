@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-GEO-004
+normative: "### FG-GEO-004 — Физический transform применяется после procedural deformation\n\nТекущее положение FractalRing в физической иерархии должно преобразовывать уже вычисленную deformed material geometry и не должно переопределять reference topology или procedural source объекта."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-GEO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"

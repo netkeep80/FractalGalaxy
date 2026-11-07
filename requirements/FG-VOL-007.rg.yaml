@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-VOL-007
+normative: "### FG-VOL-007 — Адресный поиск топологического соседа\n\nДля octree-ячейки система должна вычислять соседнюю ячейку той же глубины по оси и стороне непосредственно из канонического адреса. Такой запрос не должен требовать materialization FractalRing; выход за границу reference domain должен быть различим от существующего соседнего адреса."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VOL-003
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/volume/octree-address.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/material-region.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

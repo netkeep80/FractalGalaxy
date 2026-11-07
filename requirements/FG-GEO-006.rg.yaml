@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-GEO-006
+normative: "### FG-GEO-006 — Детерминированная triangulation SurfacePatch\n\nКаждый доказанный SurfacePatch должен триангулироваться детерминированно поверх канонических четырёх вершин: диагональ и индексы треугольников не должны зависеть от камеры, renderer, порядка вычисления или deformation Φ. Winding в reference topology должен быть направлен от cell A к соседу B по выбранной стороне интерфейса."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-GEO-005
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/triangulation.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/surface-triangulation.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

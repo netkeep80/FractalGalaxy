@@ -1,0 +1,36 @@
+format: repo-guard/requirement-v1
+id: FG-RING-010
+normative: "### FG-RING-010 — Геометрическое отклонение материализует FractalRing\n\nОбласть, которая получила persistent geometry override относительно канонической процедурной геометрии, должна считаться индивидуализированной и требовать FractalRing materialization даже если её medium и другие материальные параметры не изменились."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-005
+  - predicates: [depends_on]
+    target:
+      kind: requirement
+      id: FG-GEO-011
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/fractal-ring.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/geometry-overrides.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/vertex-deformation.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

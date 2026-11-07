@@ -30,7 +30,16 @@
 - D-правку с правилом `deepest wins`;
 - координату → octree path → generator state;
 - два последовательных `Split` и три непересекающихся владельца материи;
-- sampled mass до/после разделения.
+- sampled mass до/после разделения;
+- Surface / Geometry Lab: reference cube и его deformed projection;
+- выбор сред по обе стороны грани и решение `NONE/PRESENT/REFINE`;
+- четыре incident octants для surface-driven refinement;
+- live-probe выбранной octree-ячейки: реальная классификация текущего `M`, соседняя ячейка и стоимость refinement;
+- recursive interface extraction: доказанные и unresolved surface patches на reference/deformed представлениях;
+- каноническая SurfacePatch geometry: общие reference/deformed рёбра соседних patches совпадают до triangulation;
+- детерминированная triangulation proven patches с topology-derived winding;
+- vertex deformation pipeline: базовая форма, deterministic RND, boundary smoothing и persistent impact displacement;
+- geometry influence threshold: подпороговые воздействия не изменяют форму и не материализуют FractalRing.
 
 Исходники страницы находятся в [demo/](demo/). Публикация выполняется workflow [pages.yml](.github/workflows/pages.yml).
 
@@ -66,8 +75,12 @@ npm run demo
 6. [Происхождение требований](docs/requirements-rationale.md)
 7. [Матрица требований и проверок](docs/acceptance-matrix.md)
 8. [План проверок E0](docs/verification-plan.md)
+9. [E1: sparse FractalRing overlay](docs/e1-sparse-fractalring.md)
+10. [E1: WorldStore и частичная резидентность](docs/e1-world-store.md)
+11. [Иерархия требований](docs/requirements-hierarchy.md)
+12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 41 кандидатное native Requirement, включая `FG-PROT-001` для CPU-прототипа и `FG-WEB-001` для браузерного демо. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 104 принятых и текущих native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` приняты Author'ом и имеют `accepted:true/current:true/published:false`.
 
 ## Основные термины
 

@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-STORE-002
+normative: "### FG-STORE-002 — Различие записи и резидентности\n\nДля FractalRing система должна различать отсутствие persistent записи, существующую но не загруженную запись и resident запись. Выгрузка ring из оперативной памяти не должна удалять его persistent identity, procedural source, индексы или физические связи."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/storage/world-store.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/world-store.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STORE-000

@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-STORE-000
+normative: "### FG-STORE-000 — Персистентный WorldStore\n\nСистема должна хранить разреженное состояние мира независимо от его текущей резидентности в RAM и обеспечивать холодное восстановление поддерживаемых семантических версий."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PRODUCT-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"

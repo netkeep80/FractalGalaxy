@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-WEB-006
+normative: "### FG-WEB-006 — Визуализация детерминированной triangulation\n\nExperiment Studio должен уметь показывать triangulation доказанных interface patches через тот же triangulation API ядра. Unresolved patches не должны получать triangles. Переключение визуализации triangulation не должно изменять material/interface state."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-WEB-005
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/index.html"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/web-demo.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

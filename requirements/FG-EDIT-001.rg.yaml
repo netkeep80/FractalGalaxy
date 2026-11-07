@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-EDIT-001
 normative: "### FG-EDIT-001 — Результат изменений\n\nСистема должна хранить D как разреженное результирующее состояние изменений, различая отсутствие записи, явную пустоту и явное вещество; для чтения M не должен требоваться журнал событий. Правила приоритетов вложенных изменений зафиксированы в профиле E0."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]
@@ -18,3 +18,7 @@ relations:
     target:
       kind: artifact
       path: "docs/requirements-rationale.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-MAT-000

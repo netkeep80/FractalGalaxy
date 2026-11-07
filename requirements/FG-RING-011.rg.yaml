@@ -1,0 +1,36 @@
+format: repo-guard/requirement-v1
+id: FG-RING-011
+normative: "### FG-RING-011 — Подпороговое воздействие не материализует FractalRing\n\nВоздействие, которое после применения geometry influence threshold не создаёт ненулевого persistent geometry override, не должно само по себе требовать FractalRing materialization. Только активный результирующий geometry override является причиной индивидуализации по этому основанию."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-010
+  - predicates: [depends_on]
+    target:
+      kind: requirement
+      id: FG-GEO-012
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/fractal-ring.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/influence-threshold.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/influence-threshold.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

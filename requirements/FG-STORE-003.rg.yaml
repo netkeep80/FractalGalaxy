@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-STORE-003
+normative: "### FG-STORE-003 — Независимость семантики от backend хранения\n\nАвторитетная семантика FractalRing и процедурных ссылок не должна зависеть от конкретного storage backend. RAM, paged file, memory-mapped file или иная реализация могут различаться способом доступа и кэширования, но не значением persistent world state."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/storage/world-store.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/world-store.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STORE-000

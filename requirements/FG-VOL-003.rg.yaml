@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-VOL-003
+normative: "### FG-VOL-003 — Потенциальный octant не равен persistent объекту\n\nНаличие адресуемого octree-потомка должно означать возможность процедурного запроса этой области, а не обязательное существование FractalRing или другого persistent объекта. Алгоритм может процедурно определить EMPTY или иное состояние без persistent materialization."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VOL-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"

@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-000
+normative: "### FG-RENDER-000 — Производное отображение мира\n\nОтображение, LOD и визуальная детализация должны быть производными от авторитетного процедурного и материального состояния и не должны самостоятельно изменять материю или физическую композицию."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PRODUCT-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

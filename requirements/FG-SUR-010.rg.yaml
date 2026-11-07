@@ -1,0 +1,32 @@
+format: repo-guard/requirement-v1
+id: FG-SUR-010
+normative: "### FG-SUR-010 — Рекурсивное извлечение доказанного интерфейса\n\nЕсли исходная грань требует REFINE, система должна рекурсивно сопоставлять только четыре парных incident child-региона по обе стороны грани и возвращать разреженный набор доказанных interface patches. При достижении предельной глубины без доказательства участок должен сохраняться как unresolved, а не превращаться эвристически в поверхность или отсутствие поверхности."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-SUR-006
+  - predicates: [depends_on]
+    target:
+      kind: requirement
+      id: FG-SUR-007
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/surface/extractor.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/fractal-matter.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/interface-extractor.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

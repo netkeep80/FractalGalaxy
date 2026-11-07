@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-SUR-007
+normative: "### FG-SUR-007 — Локальное уточнение объёма около грани\n\nSurface-driven refinement одной грани octree-ячейки должно адресовать четыре incident octants этой грани и не должно автоматически требовать вычисления четырёх противоположных octants, если дополнительный контекст не нужен самому алгоритму."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-SUR-000
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/surface/interface.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/surface-geometry.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-MOVE-001
+normative: "### FG-MOVE-001 — Перенос без смены происхождения\n\nМатериализованный FractalRing должен иметь возможность перемещаться и менять положение в физической иерархии, сохраняя исходный процедурный адрес, алгоритмическую идентичность и контекст дальнейшей фрактализации."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/fractal-ring.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/sparse-fractalring.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-000

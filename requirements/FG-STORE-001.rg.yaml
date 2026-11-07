@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-STORE-001
+normative: "### FG-STORE-001 — Персистентный разреженный мир\n\nЛогический мир должен представляться как персистентное адресуемое хранилище FractalRing-записей и не должен требовать одновременного нахождения всех persistent rings в оперативной памяти."
+lifecycle:
+  accepted: true
+  current: true
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/storage/world-store.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/world-store.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-sparse-fractalring.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STORE-000
