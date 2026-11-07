@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-DYN-002
 normative: "### FG-DYN-002 — Гравитационное группирование не изменяет физическую композицию\n\nПри будущей реализации группирования гравитационных источников подсистема должна сохранять идентичности, физический лес и B/D исходных тел без принудительного Attach или Fuse. Численная точность и алгоритм группирования не входят в исполнимый профиль E0."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

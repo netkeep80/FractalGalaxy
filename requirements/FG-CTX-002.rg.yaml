@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-CTX-002
 normative: "### FG-CTX-002 — Логическая ссылка на процедурного родителя\n\nСсылка на процедурного родителя должна оставаться разрешимой по процедурному адресу даже если соответствующая область не материализована как FractalRing и не загружена в память."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-DEMO-000
 normative: "### FG-DEMO-000 — Исполняемый экспериментальный редактор-симулятор\n\nПроект должен предоставлять исполняемую экспериментальную поверхность, на которой можно наглядно исследовать и проверять ключевые свойства движка и эволюционно развивать редактор-симулятор."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]
