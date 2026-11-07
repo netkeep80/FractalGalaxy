@@ -747,6 +747,7 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     "globalThis.__fgS3Audit={",
     " snapshot:()=>({probe:currentProbeContext(),store:demoWorldStore,local:currentSurfaceMesh.deformed,regional:currentRegionalMesh.deformed,extraction:currentRegionalExtraction,selected:selectedVertexReference}),",
     " project:p=>rotateProject(p,deformedCanvas),",
+    " deform:p=>currentVertexDeformation()(p),",
     " handles:()=>selectedFaceHandles().map(v=>({...v,screen:rotateProject(currentVertexDeformation()(v.reference),deformedCanvas)})),",
     " redraw:()=>renderGeometryLab(),",
     " material:mat=>{buildModel=()=>({...__fgOriginalBuildModel(),root:mat});renderGeometryLab();},",
@@ -792,7 +793,7 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     await cdp.evaluate('(() => {const e=document.getElementById("studioChildOctant");for(const branch of ["7","6","7"]){e.value=branch;document.getElementById("studioChildButton").click();}})()');
     assert.equal(await cdp.evaluate('document.getElementById("studioPath").textContent'),'/7/6/7');
     await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
-    const deepCrossing=await cdp.evaluate("(() => {const p=__fgS3Audit.project(currentVertexDeformation()([.5,.875,1]));const strokes=globalThis.__fgS3Strokes??[];const root=strokes.filter(path=>/121,\\s*150,\\s*174/.test(path.style));const selected=strokes.filter(path=>/102,\\s*235,\\s*190/.test(path.style));const nearest=paths=>Math.min(...paths.flatMap(path=>path.points.map(point=>Math.hypot(point[0]-p.x,point[1]-p.y))));return{rootCount:root.length,selectedCount:selected.length,rootDistance:nearest(root),selectedDistance:nearest(selected)};})()");
+    const deepCrossing=await cdp.evaluate("(() => {const p=__fgS3Audit.project(__fgS3Audit.deform([.5,.875,1]));const strokes=globalThis.__fgS3Strokes??[];const root=strokes.filter(path=>/121,\\s*150,\\s*174/.test(path.style));const selected=strokes.filter(path=>/102,\\s*235,\\s*190/.test(path.style));const nearest=paths=>Math.min(...paths.flatMap(path=>path.points.map(point=>Math.hypot(point[0]-p.x,point[1]-p.y))));return{rootCount:root.length,selectedCount:selected.length,rootDistance:nearest(root),selectedDistance:nearest(selected)};})()");
     assert.ok(deepCrossing.rootCount>0&&deepCrossing.selectedCount>0);
     assert.ok(deepCrossing.rootDistance<1e-7,'root topology grid must include the fine canonical crossing');
     assert.ok(deepCrossing.selectedDistance<1e-7,'selected fine topology grid must include the same canonical crossing');
