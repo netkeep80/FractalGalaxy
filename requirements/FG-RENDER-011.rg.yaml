@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-011
+normative: "### FG-RENDER-011 — Точный spatial broad-phase visibility ordering\n\nRenderer должен исключать заведомо непересекающиеся в экранной проекции пары треугольников до exact overlap/depth narrow-phase. Broad-phase обязан быть conservative: для всех реально перекрывающихся треугольников итоговый painter order должен совпадать с exhaustive ordering. На репрезентативной разреженной сцене число narrow-phase candidate pairs должно быть как минимум в 100 раз меньше полного n(n−1)/2."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/performance.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-surface-renderer.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-surface-renderer.test.mjs"

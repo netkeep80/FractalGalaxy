@@ -77,26 +77,136 @@ function projectedDepthRelation(a,b){
   }
   return relation;
 }
-function visibilityOrder(triangles){
-  const outgoing=triangles.map(()=>new Set()),incoming=triangles.map(()=>0);
-  for(let a=0;a<triangles.length;a++)for(let b=a+1;b<triangles.length;b++){
+function heapPush(heap,value,compare){
+  let index=heap.length;
+  heap.push(value);
+  while(index>0){
+    const parent=(index-1)>>1;
+    if(compare(heap[parent],value)<=0)break;
+    heap[index]=heap[parent];
+    index=parent;
+  }
+  heap[index]=value;
+}
+function heapPop(heap,compare){
+  if(!heap.length)return null;
+  const root=heap[0];
+  const last=heap.pop();
+  if(heap.length){
+    let index=0;
+    while(true){
+      const left=index*2+1,right=left+1;
+      if(left>=heap.length)break;
+      let child=left;
+      if(right<heap.length&&compare(heap[right],heap[left])<0)child=right;
+      if(compare(heap[child],last)>=0)break;
+      heap[index]=heap[child];
+      index=child;
+    }
+    heap[index]=last;
+  }
+  return root;
+}
+function visibilityOrder(triangles,{broadPhase=true,stats=null}={}){
+  const outgoing=triangles.map(()=>new Set());
+  const incoming=new Int32Array(triangles.length);
+  const allPairs=triangles.length*(triangles.length-1)/2;
+  let candidatePairs=0,relations=0,edges=0;
+
+  const comparePair=(a,b)=>{
+    candidatePairs++;
     const relation=projectedDepthRelation(triangles[a],triangles[b]);
-    if(!relation)continue;
+    if(!relation)return;
+    relations++;
     // Larger projected depth is nearer. Painter draws far -> near.
     const from=relation>0?b:a,to=relation>0?a:b;
-    if(!outgoing[from].has(to)){outgoing[from].add(to);incoming[to]++;}
+    if(!outgoing[from].has(to)){
+      outgoing[from].add(to);
+      incoming[to]++;
+      edges++;
+    }
+  };
+
+  if(broadPhase){
+    const sorted=triangles.map((_,index)=>index).sort((a,b)=>
+      triangles[a].bounds.minX-triangles[b].bounds.minX||
+      triangles[a].bounds.maxX-triangles[b].bounds.maxX||
+      triangles[a].index-triangles[b].index
+    );
+    const active=[];
+    for(const index of sorted){
+      const current=triangles[index];
+      let write=0;
+      for(let read=0;read<active.length;read++){
+        const otherIndex=active[read];
+        const other=triangles[otherIndex];
+        // Zero-width/height bbox contact cannot produce positive-area triangle overlap.
+        if(other.bounds.maxX<=current.bounds.minX)continue;
+        active[write++]=otherIndex;
+        if(other.bounds.maxY<=current.bounds.minY||current.bounds.maxY<=other.bounds.minY)continue;
+        comparePair(otherIndex,index);
+      }
+      active.length=write;
+      active.push(index);
+    }
+  }else{
+    for(let a=0;a<triangles.length;a++)for(let b=a+1;b<triangles.length;b++)comparePair(a,b);
   }
-  const remaining=new Set(triangles.map((_,index)=>index));
-  const order=[];
+
   const fallback=(a,b)=>triangles[a].depth-triangles[b].depth||triangles[a].index-triangles[b].index;
-  while(remaining.size){
-    const available=[...remaining].filter(index=>incoming[index]===0).sort(fallback);
-    // A cycle means projected triangles cross in depth. That is outside the
-    // non-self-intersecting local S2 surface contract; keep deterministic output.
-    const chosen=(available.length?available:[...remaining].sort(fallback))[0];
-    remaining.delete(chosen);order.push(chosen);
-    for(const to of outgoing[chosen])incoming[to]--;
+  const available=[];
+  const remaining=new Uint8Array(triangles.length);
+  remaining.fill(1);
+  let orderOperations=0;
+  for(let index=0;index<triangles.length;index++){
+    if(incoming[index]===0){
+      heapPush(available,index,fallback);
+      orderOperations++;
+    }
   }
+  const fallbackOrder=triangles.map((_,index)=>index).sort(fallback);
+  let fallbackCursor=0,cycleBreaks=0;
+  const order=[];
+  while(order.length<triangles.length){
+    let chosen=null;
+    while(available.length){
+      orderOperations++;
+      const candidate=heapPop(available,fallback);
+      if(remaining[candidate]&&incoming[candidate]===0){
+        chosen=candidate;
+        break;
+      }
+    }
+    if(chosen===null){
+      while(fallbackCursor<fallbackOrder.length&&!remaining[fallbackOrder[fallbackCursor]]){
+        fallbackCursor++;
+        orderOperations++;
+      }
+      chosen=fallbackOrder[fallbackCursor++];
+      cycleBreaks++;
+      orderOperations++;
+    }
+    remaining[chosen]=0;
+    order.push(chosen);
+    for(const to of outgoing[chosen]){
+      orderOperations++;
+      incoming[to]--;
+      if(incoming[to]===0&&remaining[to]){
+        heapPush(available,to,fallback);
+        orderOperations++;
+      }
+    }
+  }
+  if(stats&&typeof stats==='object')Object.assign(stats,{
+    triangles:triangles.length,
+    allPairs,
+    candidatePairs,
+    relations,
+    edges,
+    orderOperations,
+    cycleBreaks,
+    broadPhase:Boolean(broadPhase)
+  });
   return order.map(index=>triangles[index]);
 }
 function validPatch(patch){
@@ -136,31 +246,40 @@ export function proofGapBoundaryVertices({
     return Object.freeze({reference,position:Object.freeze([...position])});
   }));
 }
-export function prepareProofTriangles(mesh,project,{deformed=false}={}){
+export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=true,stats=null}={}){
   if(!mesh||!Array.isArray(mesh.vertices)||!Array.isArray(mesh.triangles)
     ||typeof project!=='function')throw new Error('proven mesh and projection required');
-  const prepared=mesh.triangles.map((triangle,index)=>{
-    if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
-    const spatial=triangle.indices.map(i=>{
-      const vertex=mesh.vertices[i];
-      if(!vertex)throw new Error('missing canonical mesh vertex');
-      return deformed?vertex.position:vertex.reference;
-    });
-    const points=spatial.map(p=>project(p));
-    if(points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(p.depth))){
+  const spatialVertices=mesh.vertices.map(vertex=>{
+    if(!vertex)throw new Error('missing canonical mesh vertex');
+    return deformed?vertex.position:vertex.reference;
+  });
+  const projectedVertices=spatialVertices.map(point=>{
+    const projected=project(point);
+    if(!Number.isFinite(projected.x)||!Number.isFinite(projected.y)||!Number.isFinite(projected.depth)){
       throw new Error('invalid projection');
     }
+    return projected;
+  });
+  const prepared=mesh.triangles.map((triangle,index)=>{
+    if(triangle.decision!=='PRESENT')throw new Error('renderer received unproven triangle');
+    const spatial=triangle.indices.map(i=>spatialVertices[i]);
+    const points=triangle.indices.map(i=>projectedVertices[i]);
+    const normal=Array.isArray(triangle.normal)&&triangle.normal.length===3
+      ? triangle.normal
+      : triangleNormal(spatial);
     return Object.freeze({
       index,points:Object.freeze(points),
       bounds:Object.freeze({
-        minX:Math.min(...points.map(p=>p.x)),maxX:Math.max(...points.map(p=>p.x)),
-        minY:Math.min(...points.map(p=>p.y)),maxY:Math.max(...points.map(p=>p.y))
+        minX:Math.min(points[0].x,points[1].x,points[2].x),
+        maxX:Math.max(points[0].x,points[1].x,points[2].x),
+        minY:Math.min(points[0].y,points[1].y,points[2].y),
+        maxY:Math.max(points[0].y,points[1].y,points[2].y)
       }),
-      depth:points.reduce((sum,p)=>sum+p.depth,0)/3,
-      light:triangleLight(triangleNormal(spatial))
+      depth:(points[0].depth+points[1].depth+points[2].depth)/3,
+      light:triangleLight(normal)
     });
   });
-  return visibilityOrder(prepared);
+  return visibilityOrder(prepared,{broadPhase,stats});
 }
 export function paintProvenSurface(context,mesh,project,options={}){
   const tris=prepareProofTriangles(mesh,project,options);

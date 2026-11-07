@@ -358,6 +358,21 @@ let studioSurfaceMode = 'surface';
 const SURFACE_TESSELLATION_DEPTH=1;
 const REGIONAL_CELL_DEPTH=2;
 const REGIONAL_MAX_DEPTH=5;
+let currentRegionalGapGeometry={reference:null,deformed:null};
+let scheduledGeometryFrame=0;
+const studioPerformance={
+  fullBuilds:0,
+  regionalExtractions:0,
+  regionalMeshAssemblies:0,
+  viewRenders:0,
+  lastViewMs:0,
+  lastVisibilityAllPairs:0,
+  lastVisibilityCandidates:0,
+  lastVisibilityOrderOperations:0
+};
+globalThis.__fractalGalaxyPerformance=Object.freeze({
+  snapshot:()=>Object.freeze({...studioPerformance})
+});
 
 function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
@@ -834,15 +849,33 @@ function drawProofSurface(context,canvasElement,deformed){
   paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed});
   drawProofGaps(context,canvasElement,probe.boundsA,probe.axis,probe.side,deformed);
 }
-function drawRegionalProofGaps(context,canvasElement,deformed){
-  const deform=deformed?currentVertexDeformation():point=>point;
+function boxEdgeLines(bounds){
+  const corners=[];
+  for(const x of [bounds.min[0],bounds.max[0]])
+    for(const y of [bounds.min[1],bounds.max[1]])
+      for(const z of [bounds.min[2],bounds.max[2]])corners.push([x,y,z]);
+  const lines=[];
+  for(let i=0;i<corners.length;i++)for(let j=i+1;j<corners.length;j++){
+    const diff=corners[i].filter((value,axis)=>value!==corners[j][axis]).length;
+    if(diff===1)lines.push([corners[i],corners[j]]);
+  }
+  return lines;
+}
+function sampleCachedTopologyLine(a,b,deformation){
+  const subdivisions=topologyLineSubdivisions(a,b);
+  const points=[];
+  for(let i=0;i<=subdivisions;i++){
+    const t=i/subdivisions;
+    const reference=a.map((value,axis)=>value+(b[axis]-value)*t);
+    points.push(deformation(reference));
+  }
+  return Object.freeze(points.map(point=>Object.freeze([...point])));
+}
+function buildRegionalGapGeometry(deformed){
+  const deformation=deformed?currentVertexDeformation():point=>point;
   const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
   const targetDepth=mesh?.stats.targetDepth??0;
-  context.save();
-  context.lineWidth=1.8;
-  context.setLineDash([6,5]);
-  context.strokeStyle='#f3b35c';
-  for(const item of currentRegionalExtraction.unresolved){
+  const faceLoops=currentRegionalExtraction.unresolved.map(item=>{
     const bounds=octreeBoundsForPath(item.pathA,{min:-1,max:1});
     const tessellationDepth=targetDepth-item.depth;
     if(!Number.isInteger(tessellationDepth)||tessellationDepth<0||tessellationDepth>4){
@@ -850,25 +883,68 @@ function drawRegionalProofGaps(context,canvasElement,deformed){
     }
     const boundary=proofGapBoundaryVertices({
       bounds,axis:item.axis,side:item.side,patch:makeReferenceFacePatch(),
-      deformation:deform,tessellationDepth
+      deformation,tessellationDepth
     });
-    const points=boundary.map(vertex=>rotateProject(deformed?vertex.position:vertex.reference,canvasElement));
+    return Object.freeze(boundary.map(vertex=>Object.freeze([
+      ...(deformed?vertex.position:vertex.reference)
+    ])));
+  });
+  const cellLines=[];
+  for(const cell of currentRegionalExtraction.unresolvedCells??[]){
+    const bounds=octreeBoundsForPath(cell.path,{min:-1,max:1});
+    for(const [a,b] of boxEdgeLines(bounds)){
+      cellLines.push(sampleCachedTopologyLine(a,b,deformation));
+    }
+  }
+  return Object.freeze({
+    faceLoops:Object.freeze(faceLoops),
+    cellLines:Object.freeze(cellLines)
+  });
+}
+function rebuildRegionalGapGeometry(){
+  currentRegionalGapGeometry={
+    reference:buildRegionalGapGeometry(false),
+    deformed:buildRegionalGapGeometry(true)
+  };
+}
+
+function drawRegionalProofGaps(context,canvasElement,deformed){
+  const cache=deformed?currentRegionalGapGeometry.deformed:currentRegionalGapGeometry.reference;
+  if(!cache)return;
+  context.save();
+  context.lineWidth=1.8;
+  context.setLineDash([6,5]);
+  context.strokeStyle='#f3b35c';
+  for(const loop of cache.faceLoops){
+    const points=loop.map(point=>rotateProject(point,canvasElement));
+    if(!points.length)continue;
     context.beginPath();context.moveTo(points[0].x,points[0].y);
     for(const point of points.slice(1))context.lineTo(point.x,point.y);
     context.closePath();context.stroke();
   }
-  context.restore();
-  for(const cell of currentRegionalExtraction.unresolvedCells??[]){
-    drawBox(
-      context,canvasElement,octreeBoundsForPath(cell.path,{min:-1,max:1}),deformed,
-      '#f3b35c',1.2,[4,4]
-    );
+  context.lineWidth=1.2;
+  context.setLineDash([4,4]);
+  context.beginPath();
+  for(const line of cache.cellLines){
+    if(!line.length)continue;
+    const first=rotateProject(line[0],canvasElement);
+    context.moveTo(first.x,first.y);
+    for(let i=1;i<line.length;i++){
+      const point=rotateProject(line[i],canvasElement);
+      context.lineTo(point.x,point.y);
+    }
   }
+  context.stroke();
+  context.restore();
 }
 function drawRegionalProofSurface(context,canvasElement,deformed){
   const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
   if(!mesh)return;
-  paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed});
+  const visibilityStats={};
+  paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed,stats:visibilityStats});
+  studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;
+  studioPerformance.lastVisibilityCandidates=visibilityStats.candidatePairs??0;
+  studioPerformance.lastVisibilityOrderOperations=visibilityStats.orderOperations??0;
   drawRegionalProofGaps(context,canvasElement,deformed);
 }
 function surfaceProofLabel(mesh){
@@ -923,6 +999,28 @@ function drawGeometry(canvasElement, deformed) {
   }
 }
 
+function renderGeometryViews({all=false}={}){
+  const started=performance.now();
+  const mode=document.querySelector('.studio-views')?.dataset.mode??'split';
+  if(all||mode==='split'){
+    drawGeometry(referenceCanvas,false);
+    drawGeometry(deformedCanvas,true);
+  }else if(mode==='deformed'){
+    drawGeometry(deformedCanvas,true);
+  }else{
+    drawGeometry(referenceCanvas,false);
+  }
+  studioPerformance.viewRenders++;
+  studioPerformance.lastViewMs=performance.now()-started;
+}
+function scheduleGeometryViewRender(){
+  if(scheduledGeometryFrame)return;
+  scheduledGeometryFrame=requestAnimationFrame(()=>{
+    scheduledGeometryFrame=0;
+    renderGeometryViews();
+  });
+}
+
 function describeInterface(result) {
   if (result.kind === 'NONE') return `${tr('studio.interface.none')} · ${mediumLabel(result.medium)}`;
   if (result.kind === 'PRESENT') return `${tr('studio.interface.present')} · ${mediumLabel(result.leftMedium)} ↔ ${mediumLabel(result.rightMedium)}`;
@@ -930,6 +1028,7 @@ function describeInterface(result) {
 }
 
 function renderGeometryLab() {
+  studioPerformance.fullBuilds++;
   const probe = currentProbeContext();
   const { axis, side, pathA, pathB } = probe;
   const model = buildModel();
@@ -1023,12 +1122,14 @@ function renderGeometryLab() {
     deformed:assembleProvenSurfaceMesh({...geometryOptions,deformation:currentVertexDeformation()})
   };
   if(live){
+    studioPerformance.regionalExtractions++;
     currentRegionalExtraction=extractDiscoveredRegionalMaterialInterfaces(model.root,{
       cellPaths:octreePathsAtDepth(REGIONAL_CELL_DEPTH),
       maxDepth:REGIONAL_MAX_DEPTH,
       outsideMedium:'EMPTY'
     });
     const regionalTargetDepth=regionalSamplingTargetDepth(probe,currentRegionalExtraction);
+    studioPerformance.regionalMeshAssemblies+=2;
     currentRegionalMesh={
       reference:assembleRegionalSurfaceMesh({
         extraction:currentRegionalExtraction,
@@ -1042,11 +1143,13 @@ function renderGeometryLab() {
     };
   }else{
     currentRegionalExtraction={faces:[],present:[],unresolved:[],stats:{facePairs:0}};
+    studioPerformance.regionalMeshAssemblies+=2;
     currentRegionalMesh={
       reference:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction}),
       deformed:assembleRegionalSurfaceMesh({extraction:currentRegionalExtraction,deformation:currentVertexDeformation()})
     };
   }
+  rebuildRegionalGapGeometry();
   refreshSurfaceDisplayInfo();
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
@@ -1059,14 +1162,17 @@ function renderGeometryLab() {
   badge.textContent = tr('studio.status.' + finalKind);
   badge.className = 'interface-badge ' + finalKind.toLowerCase();
 
-  drawGeometry(referenceCanvas, false);
-  drawGeometry(deformedCanvas, true);
+  renderGeometryViews({all:true});
   syncStudioSelection(probe);
   updateVertexInspector();
 }
 
 for (const input of Object.values(lab)) {
-  input.addEventListener(input.type === 'range' ? 'input' : 'change', renderGeometryLab);
+  const viewOnly=input===lab.showTriangulation||input===lab.showReferenceGrid;
+  input.addEventListener(
+    input.type === 'range' ? 'input' : 'change',
+    viewOnly?()=>renderGeometryViews({all:true}):renderGeometryLab
+  );
 }
 
 function attachCameraControls(canvasElement) {
@@ -1109,7 +1215,7 @@ function attachCameraControls(canvasElement) {
     drag.x=event.clientX;drag.y=event.clientY;
     camera.yaw+=dx*.01;
     camera.pitch=Math.max(-1.35,Math.min(1.35,camera.pitch+dy*.01));
-    renderGeometryLab();
+    scheduleGeometryViewRender();
   });
 
   canvasElement.addEventListener('pointerup',event=>{
@@ -1161,7 +1267,7 @@ function attachCameraControls(canvasElement) {
   canvasElement.addEventListener('wheel', event => {
     event.preventDefault();
     camera.zoom = Math.max(0.55, Math.min(2.2, camera.zoom * Math.exp(-event.deltaY * 0.001)));
-    renderGeometryLab();
+    scheduleGeometryViewRender();
   }, { passive: false });
 }
 
@@ -1172,7 +1278,7 @@ $('resetCamera').addEventListener('click', () => {
   camera.yaw = -0.66;
   camera.pitch = 0.46;
   camera.zoom = 1;
-  renderGeometryLab();
+  renderGeometryViews({all:true});
 });
 
 function createStudioWorkspace() {
@@ -1295,7 +1401,8 @@ function createStudioWorkspace() {
     for(const button of renderButtons){
       button.setAttribute('aria-pressed',String(button.dataset.surfaceMode===mode));
     }
-    renderGeometryLab();
+    refreshSurfaceDisplayInfo();
+    renderGeometryViews({all:true});
   };
   for(const button of renderButtons){
     button.addEventListener('click',()=>setSurfaceMode(button.dataset.surfaceMode));
