@@ -1,6 +1,16 @@
 export const translations = Object.freeze({
   ru: Object.freeze({
     'studio.workspace':'Рабочее пространство Studio',
+    'studio.header.title':'Фрактальная материя как исполняемый мир',
+    'studio.header.lede':'Демонстрация общей модели материального поля M = Resolve(B,D), адресации octree и границ между средами. 2D-срез и 3D-геометрия используют одно выбранное пространственное состояние.',
+    'studio.e1Label':'E1 · Лаборатория поверхности и геометрии',
+    'studio.massHelp':'Разделение сначала по плоскости x=0, затем правая область — по y=0.',
+    'studio.footerLink':'Архитектура поверхности',
+    'studio.showGrid':'Показывать полную опорную сетку',
+    'studio.fixture.height':'Зависящее от соседей поле высот',
+    'studio.fixture.solid':'Сплошной куб',
+    'studio.viewMode':'Режим отображения',
+
     'studio.choose':'Выбранная ячейка',
     'studio.inspector':'Инспектор',
     'studio.status':'Состояние',
@@ -91,6 +101,16 @@ export const translations = Object.freeze({
   }),
   en: Object.freeze({
     'studio.workspace':'Studio workspace',
+    'studio.header.title':'Fractal matter as an executable world',
+    'studio.header.lede':'A shared material-field model M = Resolve(B,D), octree addressing and interfaces between media. The 2D slice and 3D geometry share one selected spatial state.',
+    'studio.e1Label':'E1 · Surface and geometry laboratory',
+    'studio.massHelp':'First split at x=0, then split the right-hand region at y=0.',
+    'studio.footerLink':'Surface architecture',
+    'studio.showGrid':'Show full reference grid',
+    'studio.fixture.height':'Neighbor-dependent height field',
+    'studio.fixture.solid':'Solid cube',
+    'studio.viewMode':'Viewport mode',
+
     'studio.choose':'Selected cell',
     'studio.inspector':'Inspector',
     'studio.status':'State',

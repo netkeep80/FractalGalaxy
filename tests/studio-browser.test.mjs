@@ -141,6 +141,8 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
     await cdp.evaluate('(() => { const e=document.getElementById("studioLanguage"); e.value="en"; e.dispatchEvent(new Event("change", {bubbles:true})); })()');
     assert.equal(await cdp.evaluate('document.getElementById("studioInspectorHeading").textContent'), 'Inspector');
     assert.equal(await cdp.evaluate('document.documentElement.lang'), 'en');
+    assert.equal(await cdp.evaluate('document.querySelector(".hero h1").textContent'), 'Fractal matter as an executable world');
+    assert.equal(await cdp.evaluate('document.getElementById("showReferenceGrid").checked'), false);
     assert.equal(await cdp.evaluate('document.getElementById("studioPath").textContent'), restored);
     await cdp.evaluate('(() => { const e=document.getElementById("studioLanguage"); e.value="ru"; e.dispatchEvent(new Event("change", {bubbles:true})); })()');
     assert.equal(await cdp.evaluate('document.getElementById("studioInspectorHeading").textContent'), 'Инспектор');

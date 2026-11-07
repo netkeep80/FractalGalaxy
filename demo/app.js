@@ -54,7 +54,8 @@ const lab = {
   influenceMagnitude: $('influenceMagnitude'),
   influenceThreshold: $('influenceThreshold'),
   influenceCompliance: $('influenceCompliance'),
-  showTriangulation: $('showTriangulation')
+  showTriangulation: $('showTriangulation'),
+  showReferenceGrid: $('showReferenceGrid')
 };
 
 $('version').textContent = E0_VERSION;
@@ -189,6 +190,25 @@ function renderMaterialView() {
     ctx.moveTo(canvas.width / 2, canvas.height / 2);
     ctx.lineTo(canvas.width, canvas.height / 2);
   }
+  ctx.stroke();
+
+  // 2D and 3D views share one canonical selected cell.
+  const path = addressForPoint(selectedPoint, Number(lab.probeDepth.value)).path;
+  const bounds = octreeBoundsForPath(path);
+  const px = (bounds.min[0] + 1) * canvas.width / 2;
+  const py = (1 - bounds.max[1]) * canvas.height / 2;
+  const w = (bounds.max[0] - bounds.min[0]) * canvas.width / 2;
+  const h = (bounds.max[1] - bounds.min[1]) * canvas.height / 2;
+  ctx.strokeStyle = 'rgba(255,235,144,.96)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, Math.max(0,w-2), Math.max(0,h-2));
+  const markerX = (selectedPoint[0] + 1) * canvas.width / 2;
+  const markerY = (1 - selectedPoint[1]) * canvas.height / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,.95)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(markerX-6, markerY); ctx.lineTo(markerX+6, markerY);
+  ctx.moveTo(markerX, markerY-6); ctx.lineTo(markerX, markerY+6);
   ctx.stroke();
 
   updateLegend();
@@ -497,7 +517,7 @@ function drawSelectedFace(context, canvasElement, deformed) {
   drawBox(context, canvasElement, boundsA, deformed, 'rgba(92,176,211,.62)', 1.4);
   drawExtractedSurface(context, canvasElement, boundsA, axis, side, deformed);
   if (probe.boundsB) {
-    drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(255,185,88,.30)', 1);
+    drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(128,160,246,.48)', 1);
   }
 
   for (const t of [-1, 0, 1]) {
@@ -553,6 +573,15 @@ function drawAxes(context, canvasElement, deformed) {
   }
 }
 
+function drawContextHierarchy(context, canvasElement, deformed) {
+  const path = currentProbeContext().pathA;
+  for (let depth = 0; depth < path.length; depth++) {
+    const bounds = octreeBoundsForPath(path.slice(0, depth), { min:-1, max:1 });
+    drawBox(context, canvasElement, bounds, deformed,
+      `rgba(90,132,158,${(0.14 + 0.04*depth).toFixed(3)})`, 1);
+  }
+}
+
 function drawGeometry(canvasElement, deformed) {
   const context = canvasElement.getContext('2d');
   context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -566,7 +595,8 @@ function drawGeometry(canvasElement, deformed) {
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-  drawCubeGrid(context, canvasElement, deformed);
+  if (lab.showReferenceGrid.checked) drawCubeGrid(context, canvasElement, deformed);
+  else drawContextHierarchy(context, canvasElement, deformed);
   drawSelectedFace(context, canvasElement, deformed);
   drawAxes(context, canvasElement, deformed);
 }
@@ -885,6 +915,11 @@ function applyStudioLocale() {
     ['studio.helpDrag', '.lab-controls .note:nth-of-type(2)'],
     ['studio.e0Help', '.viewport-head p'],
     ['studio.footer', 'footer span'],
+    ['studio.header.title', '.hero h1'],
+    ['studio.header.lede', '.hero .lede'],
+    ['studio.e1Label', '.section-heading .eyebrow'],
+    ['studio.massHelp', '.inspector .note'],
+    ['studio.footerLink', 'footer a'],
     ['studio.inspector', '#studioInspectorHeading'],
     ['studio.level', '#studioLevelLabel'],
     ['studio.path', '#studioPathLabel'],
@@ -909,7 +944,8 @@ function applyStudioLocale() {
     deformBlend:'studio.deform',rndAmplitude:'studio.rnd',
     smoothingWeight:'studio.smooth',influenceMagnitude:'studio.influence',
     influenceThreshold:'studio.threshold',influenceCompliance:'studio.compliance',
-    showTriangulation:'studio.triangulation'
+    showTriangulation:'studio.triangulation',
+    showReferenceGrid:'studio.showGrid'
   })) {
     const el = $(id).closest('label').querySelector('span');
     replaceVisibleText(el, tr(key));
@@ -923,6 +959,8 @@ function applyStudioLocale() {
   modeOptions[1].textContent = tr('studio.mode.owners');
   lab.source.options[0].textContent = tr('studio.source.live');
   lab.source.options[1].textContent = tr('studio.source.manual');
+  controls.fixture.options[0].textContent = tr('studio.fixture.height');
+  controls.fixture.options[1].textContent = tr('studio.fixture.solid');
   document.querySelectorAll('.studio-view-modes button').forEach(button => {
     button.textContent = tr('studio.view.' + button.dataset.view);
   });
@@ -937,6 +975,10 @@ function applyStudioLocale() {
     replaceVisibleText(labels[4], tr('studio.owner'));
   }
   $('studioLanguage').setAttribute('aria-label', tr('studio.language'));
+  document.querySelector('.studio-view-modes').setAttribute('aria-label', tr('studio.viewMode'));
+  referenceCanvas.setAttribute('aria-label', tr('studio.reference'));
+  deformedCanvas.setAttribute('aria-label', tr('studio.deformed'));
+  $('interfaceBadge').setAttribute('title', tr('studio.status'));
   const probe = currentProbeContext();
   syncStudioSelection(probe);
 }
