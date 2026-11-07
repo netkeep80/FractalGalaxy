@@ -495,22 +495,21 @@ function currentVertexDeformation() {
   });
 }
 
-function rotateProject(point, canvasElement) {
-  const [x, y, z] = point;
-  const cy = Math.cos(camera.yaw), sy = Math.sin(camera.yaw);
-  const cp = Math.cos(camera.pitch), sp = Math.sin(camera.pitch);
-
-  const x1 = x * cy + z * sy;
-  const z1 = -x * sy + z * cy;
-  const y1 = y * cp - z1 * sp;
-  const depth = y * sp + z1 * cp;
-
-  const scale = Math.min(canvasElement.width, canvasElement.height) * 0.30 * camera.zoom;
-  return {
-    x: canvasElement.width / 2 + x1 * scale,
-    y: canvasElement.height / 2 - y1 * scale,
-    depth
+function makeCameraProjector(canvasElement) {
+  const cy=Math.cos(camera.yaw),sy=Math.sin(camera.yaw);
+  const cp=Math.cos(camera.pitch),sp=Math.sin(camera.pitch);
+  const scale=Math.min(canvasElement.width,canvasElement.height)*0.30*camera.zoom;
+  const cx=canvasElement.width/2,cyCanvas=canvasElement.height/2;
+  return point=>{
+    const x=point[0],y=point[1],z=point[2];
+    const x1=x*cy+z*sy;
+    const z1=-x*sy+z*cy;
+    const y1=y*cp-z1*sp;
+    return {x:cx+x1*scale,y:cyCanvas-y1*scale,depth:y*sp+z1*cp};
   };
+}
+function rotateProject(point,canvasElement){
+  return makeCameraProjector(canvasElement)(point);
 }
 
 function mapGeometry(point, deformed) {
@@ -895,10 +894,14 @@ function buildRegionalGapGeometry(deformed){
       ...(deformed?vertex.position:vertex.reference)
     ])));
   });
-  const cellLines=[];
+  const cellLines=[],seenCellEdges=new Set();
   for(const cell of currentRegionalExtraction.unresolvedCells??[]){
     const bounds=octreeBoundsForPath(cell.path,{min:-1,max:1});
     for(const [a,b] of boxEdgeLines(bounds)){
+      const ak=referenceVertexKey(a),bk=referenceVertexKey(b);
+      const edgeKey=ak<bk?ak+'|'+bk:bk+'|'+ak;
+      if(seenCellEdges.has(edgeKey))continue;
+      seenCellEdges.add(edgeKey);
       cellLines.push(sampleCachedTopologyLine(a,b,deformation));
     }
   }
@@ -914,7 +917,7 @@ function rebuildRegionalGapGeometry(){
   };
 }
 
-function drawRegionalProofGaps(context,canvasElement,deformed){
+function drawRegionalProofGaps(context,canvasElement,deformed,project=makeCameraProjector(canvasElement)){
   const cache=deformed?currentRegionalGapGeometry.deformed:currentRegionalGapGeometry.reference;
   if(!cache)return;
   context.save();
@@ -922,7 +925,7 @@ function drawRegionalProofGaps(context,canvasElement,deformed){
   context.setLineDash([6,5]);
   context.strokeStyle='#f3b35c';
   for(const loop of cache.faceLoops){
-    const points=loop.map(point=>rotateProject(point,canvasElement));
+    const points=loop.map(project);
     if(!points.length)continue;
     context.beginPath();context.moveTo(points[0].x,points[0].y);
     for(const point of points.slice(1))context.lineTo(point.x,point.y);
@@ -933,10 +936,10 @@ function drawRegionalProofGaps(context,canvasElement,deformed){
   context.beginPath();
   for(const line of cache.cellLines){
     if(!line.length)continue;
-    const first=rotateProject(line[0],canvasElement);
+    const first=project(line[0]);
     context.moveTo(first.x,first.y);
     for(let i=1;i<line.length;i++){
-      const point=rotateProject(line[i],canvasElement);
+      const point=project(line[i]);
       context.lineTo(point.x,point.y);
     }
   }
@@ -946,8 +949,8 @@ function drawRegionalProofGaps(context,canvasElement,deformed){
 function drawRegionalProofSurface(context,canvasElement,deformed){
   const mesh=deformed?currentRegionalMesh.deformed:currentRegionalMesh.reference;
   if(!mesh)return;
-  const visibilityStats={};
-  paintProvenSurface(context,mesh,point=>rotateProject(point,canvasElement),{deformed,stats:visibilityStats});
+  const visibilityStats={},project=makeCameraProjector(canvasElement);
+  paintProvenSurface(context,mesh,project,{deformed,stats:visibilityStats});
   studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;
   studioPerformance.lastVisibilityCandidates=visibilityStats.candidatePairs??0;
   studioPerformance.lastVisibilityOrderOperations=visibilityStats.orderOperations??0;
@@ -957,7 +960,7 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   studioPerformance.lastVisibilityBroadPhaseOperations=visibilityStats.broadPhaseOperations??0;
   studioPerformance.lastVisibilitySatRejected=visibilityStats.satRejected??0;
   studioPerformance.lastVisibilityClipCalls=visibilityStats.clipCalls??0;
-  drawRegionalProofGaps(context,canvasElement,deformed);
+  drawRegionalProofGaps(context,canvasElement,deformed,project);
 }
 function surfaceProofLabel(mesh){
   if(!mesh)return '—';
