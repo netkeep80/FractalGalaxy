@@ -279,7 +279,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
 
     await t.test('surface proof and unresolved rendering have distinct visual effects, and only proven patches triangulate', async () => {
       await cdp.evaluate('document.querySelector("[data-surface-mode=debug]").click()');
-      const hash = () cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
+      const hash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
       const setTriangles = checked => cdp.evaluate('(() => {const e=document.getElementById("showTriangulation");e.checked='+checked+';e.dispatchEvent(new Event("change",{bubbles:true}));})()');
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
