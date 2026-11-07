@@ -34,7 +34,8 @@
 - Surface / Geometry Lab: reference cube и его deformed projection;
 - выбор сред по обе стороны грани и решение `NONE/PRESENT/REFINE`;
 - четыре incident octants для surface-driven refinement;
-- live-probe выбранной octree-ячейки: реальная классификация текущего `M`, соседняя ячейка и стоимость refinement.
+- live-probe выбранной octree-ячейки: реальная классификация текущего `M`, соседняя ячейка и стоимость refinement;
+- recursive interface extraction: доказанные и unresolved surface patches на reference/deformed представлениях.
 
 Исходники страницы находятся в [demo/](demo/). Публикация выполняется workflow [pages.yml](.github/workflows/pages.yml).
 
@@ -75,7 +76,7 @@ npm run demo
 11. [Иерархия требований](docs/requirements-hierarchy.md)
 12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 88 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 90 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
 
 ## Основные термины
 

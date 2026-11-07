@@ -25,12 +25,17 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(html, /id="probeDepth"/);
   assert.match(html, /id="classificationA"/);
   assert.match(html, /id="refinementA"/);
+  assert.match(html, /id="presentPatches"/);
+  assert.match(html, /id="unresolvedPatches"/);
+  assert.match(html, /id="visitedPairs"/);
   assert.match(html, /type="module" src="\.\/app\.js"/);
 
   assert.match(app, /from '\.\/src\/fractal-matter\.mjs'/);
   assert.match(app, /classifyMaterialRegion/);
   assert.match(app, /adjacentOctreePath/);
   assert.match(app, /octreeBoundsForPath/);
+  assert.match(app, /extractMaterialInterface/);
+  assert.match(app, /drawExtractedSurface/);
   assert.match(app, /selectedPoint/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /OUTSIDE → EMPTY/);
@@ -53,6 +58,8 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
     assert.equal(typeof module.classifyMaterialRegion, 'function');
     assert.equal(typeof module.adjacentOctreePath, 'function');
     assert.equal(typeof module.classifyMaterialInterface, 'function');
+    assert.equal(typeof module.extractMaterialInterface, 'function');
+    assert.equal(typeof module.extractInterfacePatches, 'function');
     assert.equal(typeof module.cubeToSphereDeformation, 'function');
   } finally {
     await rm(temp, { recursive: true, force: true });

@@ -17,7 +17,8 @@ import {
   cubeToSphereDeformation,
   classifyMaterialRegion,
   adjacentOctreePath,
-  octreeBoundsForPath
+  octreeBoundsForPath,
+  extractMaterialInterface
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -264,6 +265,7 @@ const referenceCanvas = $('referenceView');
 const deformedCanvas = $('deformedView');
 const camera = { yaw: -0.66, pitch: 0.46, zoom: 1 };
 let drag = null;
+let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 
 function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
@@ -385,12 +387,56 @@ function drawBox(context, canvasElement, bounds, deformed, stroke = 'rgba(118,17
   }
 }
 
+function facePatchCorners(bounds, axis, side, patch) {
+  const u0 = -1 + 2 * patch.u0;
+  const u1 = -1 + 2 * patch.u1;
+  const v0 = -1 + 2 * patch.v0;
+  const v1 = -1 + 2 * patch.v1;
+  return [
+    facePointForBounds(bounds, axis, side, u0, v0),
+    facePointForBounds(bounds, axis, side, u1, v0),
+    facePointForBounds(bounds, axis, side, u1, v1),
+    facePointForBounds(bounds, axis, side, u0, v1)
+  ];
+}
+
+function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, deformed, fill, stroke) {
+  const points = facePatchCorners(bounds, axis, side, patch)
+    .map(point => rotateProject(mapGeometry(point, deformed), canvasElement));
+
+  context.beginPath();
+  context.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) context.lineTo(points[i].x, points[i].y);
+  context.closePath();
+  context.fillStyle = fill;
+  context.fill();
+  context.strokeStyle = stroke;
+  context.lineWidth = 1.4;
+  context.stroke();
+}
+
+function drawExtractedSurface(context, canvasElement, bounds, axis, side, deformed) {
+  for (const item of currentSurfaceExtraction.present ?? []) {
+    drawSurfacePatch(
+      context, canvasElement, bounds, axis, side, item.patch, deformed,
+      'rgba(71, 231, 177, .20)', 'rgba(93, 244, 193, .88)'
+    );
+  }
+  for (const item of currentSurfaceExtraction.unresolved ?? []) {
+    drawSurfacePatch(
+      context, canvasElement, bounds, axis, side, item.patch, deformed,
+      'rgba(255, 178, 74, .16)', 'rgba(255, 190, 91, .88)'
+    );
+  }
+}
+
 function drawSelectedFace(context, canvasElement, deformed) {
   const probe = currentProbeContext();
   const { axis, side, pathA, boundsA } = probe;
   const stroke = 'rgba(102, 235, 190, .95)';
 
   drawBox(context, canvasElement, boundsA, deformed, 'rgba(92,176,211,.62)', 1.4);
+  drawExtractedSurface(context, canvasElement, boundsA, axis, side, deformed);
   if (probe.boundsB) {
     drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(255,185,88,.30)', 1);
   }
@@ -490,12 +536,39 @@ function renderGeometryLab() {
           stats: { inspectedNodes: 0, deepestDepth: probe.depth, reasons: { 'outside-domain': 1 } },
           outsideDomain: true
         };
+
+    currentSurfaceExtraction = extractMaterialInterface(model.root, {
+      pathA,
+      pathB,
+      axis,
+      side,
+      maxDepth: 5,
+      outsideMedium: 'EMPTY'
+    });
   } else {
     aResult = { classification: classificationFor(lab.mediumA.value) };
     bResult = { classification: classificationFor(lab.mediumB.value) };
+    const decision = classifyMaterialInterface(aResult.classification, bResult.classification);
+    currentSurfaceExtraction = decision.kind === 'PRESENT'
+      ? {
+          present: [{ patch: makeReferenceFacePatch(), decision }],
+          unresolved: [],
+          stats: { visitedPairs: 1 }
+        }
+      : decision.kind === 'REFINE'
+        ? {
+            present: [],
+            unresolved: [{ patch: makeReferenceFacePatch(), decision }],
+            stats: { visitedPairs: 1 }
+          }
+        : {
+            present: [],
+            unresolved: [],
+            stats: { visitedPairs: 1 }
+          };
   }
 
-  const decision = classifyMaterialInterface(aResult.classification, bResult.classification);
+  const rootDecision = classifyMaterialInterface(aResult.classification, bResult.classification);
   const incidentA = incidentOctantsForFace(axis, side);
   const incidentB = incidentOctantsForFace(axis, -side);
   const patches = subdivideReferenceFacePatch(makeReferenceFacePatch());
@@ -512,12 +585,20 @@ function renderGeometryLab() {
   $('incidentA').textContent = '[' + incidentA.join(', ') + ']';
   $('incidentB').textContent = '[' + incidentB.join(', ') + ']';
   $('surfacePatches').textContent = String(patches.length);
-  $('interfaceDecision').textContent = describeInterface(decision);
+  $('presentPatches').textContent = String(currentSurfaceExtraction.present.length);
+  $('unresolvedPatches').textContent = String(currentSurfaceExtraction.unresolved.length);
+  $('visitedPairs').textContent = String(currentSurfaceExtraction.stats.visitedPairs ?? 0);
+  $('interfaceDecision').textContent = describeInterface(rootDecision);
   $('deformOut').value = Math.round(Number(lab.deformBlend.value) * 100) + '%';
 
+  const finalKind = currentSurfaceExtraction.unresolved.length > 0
+    ? 'REFINE'
+    : currentSurfaceExtraction.present.length > 0
+      ? 'PRESENT'
+      : 'NONE';
   const badge = $('interfaceBadge');
-  badge.textContent = decision.kind;
-  badge.className = 'interface-badge ' + decision.kind.toLowerCase();
+  badge.textContent = finalKind;
+  badge.className = 'interface-badge ' + finalKind.toLowerCase();
 
   drawGeometry(referenceCanvas, false);
   drawGeometry(deformedCanvas, true);

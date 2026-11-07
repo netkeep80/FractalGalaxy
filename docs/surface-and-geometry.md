@@ -112,3 +112,36 @@ NONE / PRESENT / REFINE
 Адресный сосед той же глубины вычисляется непосредственно из octree path. Если сосед выходит за пределы конечного E0 reference domain, только Web Lab трактует внешнюю сторону как EMPTY для демонстрации внешней поверхности; это не является общим правилом WorldStore.
 
 Такой режим позволяет видеть не только итог `PRESENT/REFINE`, но и **почему** интерфейс доказан либо требует дальнейшей volume refinement.
+
+## 10. Recursive interface extraction
+
+После первичной классификации `MIXED → REFINE` surface layer не строит поверхность всей parent face.
+
+`extractInterfacePatches` рекурсивно сопоставляет только четыре пары incident children:
+
+```text
+face patch
+   ├── pair 0: child A₀ ↔ child B₀
+   ├── pair 1: child A₁ ↔ child B₁
+   ├── pair 2: child A₂ ↔ child B₂
+   └── pair 3: child A₃ ↔ child B₃
+```
+
+Для каждой пары:
+
+- одинаковые homogeneous media → patch отбрасывается;
+- различные homogeneous media → patch фиксируется как proven interface;
+- Mixed на любой стороне → patch делится ещё на четыре;
+- достижение max depth при Mixed → patch сохраняется как `unresolved`.
+
+Таким образом extractor не придумывает геометрию там, где volume model ещё не дал достаточной информации.
+
+Результат содержит:
+
+- `present[]` — доказанные interface patches;
+- `unresolved[]` — участки, требующие более глубокой volume refinement;
+- статистику visited pairs / discarded / present / unresolved / deepest depth.
+
+Это ещё **не mesh extraction**. Triangulation, crack-free tessellation, LOD и GPU representation являются следующими производными слоями.
+
+Web Studio рисует proven patches зелёным, unresolved — янтарным, используя один и тот же параметрический patch как в reference, так и в deformed view.

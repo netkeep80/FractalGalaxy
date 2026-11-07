@@ -113,7 +113,8 @@
         <h2>Куб — адресная топология, поверхность — граница сред</h2>
         <p>
           Выберите топологическую грань и среды по обе стороны. Если одна сторона <code>MIXED</code>,
-          интерфейс нельзя решить без дальнейшей объёмной фрактализации.
+          интерфейс нельзя решить без дальнейшей объёмной фрактализации. Рекурсивный extractor
+          делит только саму выбранную грань и отмечает доказанные и пока unresolved участки.
         </p>
       </div>
       <div id="interfaceBadge" class="interface-badge">—</div>
@@ -187,8 +188,11 @@
           <div><span>Refinement cost B</span><strong id="refinementB">—</strong></div>
           <div><span>A incident octants</span><strong id="incidentA">—</strong></div>
           <div><span>B incident octants</span><strong id="incidentB">—</strong></div>
-          <div><span>Surface patches</span><strong id="surfacePatches">4</strong></div>
-          <div><span>Decision</span><strong id="interfaceDecision">—</strong></div>
+          <div><span>Quadtree children / refine</span><strong id="surfacePatches">4</strong></div>
+          <div><span>Proven interface patches</span><strong id="presentPatches">—</strong></div>
+          <div><span>Unresolved patches</span><strong id="unresolvedPatches">—</strong></div>
+          <div><span>Visited face pairs</span><strong id="visitedPairs">—</strong></div>
+          <div><span>Root decision</span><strong id="interfaceDecision">—</strong></div>
         </div>
 
         <p class="note">

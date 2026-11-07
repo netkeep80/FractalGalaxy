@@ -1,6 +1,7 @@
 import { homogeneousVolume, mixedVolume } from './volume/classification.mjs';
 import { refineVolumeClassification } from './volume/refinement.mjs';
 import { octreeBoundsForPath } from './volume/octree-address.mjs';
+import { extractInterfacePatches } from './surface/extractor.mjs';
 
 const U32 = 0x1_0000_0000;
 export const E0_VERSION = 'e0-prototype-1';
@@ -346,6 +347,38 @@ export function classifyMaterialRegion(material, path = [], { maxDepth = DOMAIN.
 }
 
 
+export function extractMaterialInterface(material, {
+  pathA,
+  pathB,
+  axis,
+  side,
+  maxDepth = DOMAIN.depth,
+  outsideMedium = 'EMPTY'
+} = {}) {
+  if (!Array.isArray(pathA)) throw new Error('pathA required');
+  if (pathB !== null && !Array.isArray(pathB)) throw new Error('pathB must be an octree path or null');
+
+  return extractInterfacePatches({
+    pathA,
+    pathB,
+    axis,
+    side,
+    maxDepth,
+    classifyA(currentPath) {
+      return classifyMaterialRegion(material, currentPath, {
+        maxDepth: currentPath.length
+      }).classification;
+    },
+    classifyB(currentPath) {
+      if (currentPath === null) return homogeneousVolume(outsideMedium);
+      return classifyMaterialRegion(material, currentPath, {
+        maxDepth: currentPath.length
+      }).classification;
+    }
+  });
+}
+
+
 // E1 sparse FractalRing overlay primitives.
 // Kept behind the E0 facade so existing tests and demos remain source-compatible.
 export {
@@ -425,3 +458,9 @@ export {
   octreeBoundsForPath,
   octreeCellCenter
 } from './volume/octree-address.mjs';
+
+
+export {
+  faceChildPairs,
+  extractInterfacePatches
+} from './surface/extractor.mjs';
