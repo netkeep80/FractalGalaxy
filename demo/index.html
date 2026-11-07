@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Интерактивное E0-демо FractalGalaxy: B/D/Γ, M=Resolve(B,D), octree и Split.">
+  <title>FractalGalaxy — E0 demo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <div class="eyebrow">FractalGalaxy · E0 browser demo</div>
+      <h1>Фрактальная материя как исполняемое поле</h1>
+      <p class="lede">
+        Эта страница запускает тот же <code>src/fractal-matter.mjs</code>, что и тесты проекта:
+        процедурное <strong>B</strong>, изменения <strong>D</strong>, контекст <strong>Γ</strong>,
+        <strong>M = Resolve(B,D)</strong> и композиционный <strong>Split</strong>.
+      </p>
+    </div>
+    <a class="repo-link" href="https://github.com/netkeep80/FractalGalaxy">GitHub ↗</a>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls">
+      <h2>Параметры</h2>
+
+      <label>
+        <span>Root seed</span>
+        <input id="seed" value="0x12345678" spellcheck="false">
+      </label>
+
+      <label>
+        <span>Γ: alpha_neighbor <output id="alphaOut">0</output></span>
+        <input id="alpha" type="range" min="-8" max="8" value="0" step="1">
+      </label>
+
+      <label>
+        <span>Z-срез <output id="zOut">0.000</output></span>
+        <input id="zSlice" type="range" min="-1" max="1" value="0" step="0.01">
+      </label>
+
+      <label>
+        <span>Базовая фикстура B</span>
+        <select id="fixture">
+          <option value="height">neighbor-dependent height field</option>
+          <option value="solid">solid cube</option>
+        </select>
+      </label>
+
+      <label class="check">
+        <input id="editD" type="checkbox">
+        <span>D: удалить octant 7</span>
+      </label>
+
+      <label>
+        <span>Режим</span>
+        <select id="mode">
+          <option value="matter">Материя M</option>
+          <option value="owners">Владельцы после Split</option>
+        </select>
+      </label>
+
+      <div class="legend" id="legend"></div>
+
+      <button id="reset" type="button">Сбросить параметры</button>
+    </section>
+
+    <section class="panel viewport-panel">
+      <div class="viewport-head">
+        <div>
+          <h2>Срез Ω = [-1,1]³</h2>
+          <p>Клик по полю показывает канонический octree-адрес и состояние генератора.</p>
+        </div>
+        <div class="badge" id="version"></div>
+      </div>
+      <canvas id="view" width="640" height="640" aria-label="Срез материального поля"></canvas>
+      <div class="axis-labels">
+        <span>y = +1</span>
+        <span>x = −1 … +1</span>
+      </div>
+    </section>
+
+    <section class="panel inspector">
+      <h2>Точка</h2>
+      <dl>
+        <div><dt>Координата</dt><dd id="point">—</dd></div>
+        <div><dt>Octree path</dt><dd id="path">—</dd></div>
+        <div><dt>Generator state</dt><dd id="state">—</dd></div>
+        <div><dt>M(x)</dt><dd id="matter">—</dd></div>
+        <div><dt>Owner</dt><dd id="owner">—</dd></div>
+      </dl>
+
+      <h2>Масса, sampled depth 4</h2>
+      <dl>
+        <div><dt>До Split</dt><dd id="massRoot">—</dd></div>
+        <div><dt>x &lt; 0</dt><dd id="massLeft">—</dd></div>
+        <div><dt>x ≥ 0, y &lt; 0</dt><dd id="massRB">—</dd></div>
+        <div><dt>x ≥ 0, y ≥ 0</dt><dd id="massRT">—</dd></div>
+        <div><dt>Сумма частей</dt><dd id="massSum">—</dd></div>
+      </dl>
+
+      <p class="note">
+        Split выполняется дважды: сначала по <code>x=0</code>, затем правая часть по <code>y=0</code>.
+        Вторая операция пересекает новую полуплоскость с уже существующей ownership-mask.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <span>CPU E0 prototype · без WebGPU и production physics</span>
+    <a href="https://github.com/netkeep80/FractalGalaxy/blob/main/docs/prototype.md">Ограничения прототипа ↗</a>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
