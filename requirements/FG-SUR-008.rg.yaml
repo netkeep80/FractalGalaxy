@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-008
 normative: "### FG-SUR-008 — Surface quadtree является производным представлением\n\nSurface quadtree должен уточнять параметрическое представление уже определяемого volume/material model интерфейса и не должен быть независимым авторитетным источником наличия вещества."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

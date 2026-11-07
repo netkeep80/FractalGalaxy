@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-VERIFY-001
 normative: "### FG-VERIFY-001 — Предметное свидетельство проверки\n\nДля заявления о выполнении требования проект должен иметь проверочное свидетельство с точной версией реализации, конкретным утверждением, входными данными, ожидаемым оракулом и фактическим результатом. Наличие плана либо формальный GREEN RepoGuard не являются доказательством предметного свойства."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

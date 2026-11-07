@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-009
 normative: "### FG-SUR-009 — Внешние и внутренние интерфейсы\n\nОбщий механизм определения границы должен поддерживать как внешний интерфейс вещество/EMPTY, так и внутренний интерфейс двух различных непустых сред, не отождествляя эти случаи."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

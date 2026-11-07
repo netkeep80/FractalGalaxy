@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-VERIFY-000
 normative: "### FG-VERIFY-000 — Верификация и governance\n\nПроект должен обеспечивать трассируемую проверку требований и воспроизводимую проверку точных ревизий без подмены предметного доказательства формальным GREEN."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

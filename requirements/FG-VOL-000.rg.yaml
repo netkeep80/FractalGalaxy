@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-VOL-000
 normative: "### FG-VOL-000 — Процедурное объёмное поле\n\nСистема должна поддерживать ленивую адресную фрактализацию объёма, позволяющую определять содержимое, однородность и необходимость дальнейшего уточнения без обязательной материализации полного octree."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

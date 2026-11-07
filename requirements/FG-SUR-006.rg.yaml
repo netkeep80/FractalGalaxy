@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-006
 normative: "### FG-SUR-006 — Неопределённый интерфейс требует объёмного уточнения\n\nЕсли хотя бы одна сторона потенциального интерфейса классифицирована как Mixed, система не должна объявлять всю грань присутствующей или отсутствующей поверхностью; она должна запросить достаточное дальнейшее объёмное уточнение."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]
