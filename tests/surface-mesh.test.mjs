@@ -57,7 +57,7 @@ test('two adjacent proven patches share one exact canonical edge under RND, smoo
 });
 test('mesh geometry is unchanged after real persistent FractalRing split and cold reinterpretation',()=>{
   const source=makeProceduralRef({rootId:'S2',address:[],algorithmId:'e0',algorithmVersion:'v1'});
-  const reference=[0,0,1];
+  const reference=[1,1,1];
   let store=makeMemoryWorldStore({resident:'none'});
   const influence=applyVertexInfluence(store,{source,reference,influence:[.25,.08,0],threshold:.03});
   store=influence.store;
@@ -72,7 +72,7 @@ test('mesh geometry is unchanged after real persistent FractalRing split and col
   const after=assembleProvenSurfaceMesh({...cfg,extraction,deformation:evaluate(split.store)});
   assert.deepEqual(after,before);
   assert.equal(after.triangles.length,2);
-  assert.ok(after.vertices.some(v=>v.key==='0,0,1'));
+  assert.ok(after.vertices.some(v=>v.key==='1,1,1'));
 });
 test('constant mesh evaluator is deterministic and returns nondegenerate surface normal',()=>{
  const extract=classified(rock,empty);
