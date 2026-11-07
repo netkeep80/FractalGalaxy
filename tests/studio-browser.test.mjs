@@ -17,7 +17,7 @@ function chromeBinary() {
   return null;
 }
 
-async function startServer() {
+async function startServer({appSuffix=''}={}) {
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://localhost');
@@ -29,7 +29,10 @@ async function startServer() {
       if (!full.startsWith(base + '/') || full.includes('/.git/')) {
         res.writeHead(403); res.end(); return;
       }
-      const bytes = await readFile(full);
+      let bytes = await readFile(full);
+      if(appSuffix && full===resolve(root,'demo','app.js')){
+        bytes=Buffer.concat([bytes,Buffer.from('\n'+appSuffix+'\n')]);
+      }
       const mime = { '.html':'text/html', '.css':'text/css', '.js':'text/javascript',
         '.mjs':'text/javascript', '.json':'application/json' }[extname(full)] || 'text/plain';
       res.writeHead(200, { 'content-type': mime + '; charset=utf-8', 'cache-control':'no-store' });
@@ -662,6 +665,196 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     chrome?.socket.close();
     chrome?.child.kill('SIGKILL');
     if(server) await new Promise(resolve => server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});
+
+
+test('S3 acceptance: regional surface mode and canonical nonlinear topology grid are live in Studio', {timeout:45000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const temp=await mkdtemp(join(tmpdir(),'fg-s3-regional-'));
+  let server,chrome;
+  try{
+    const web=await startServer();server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))',true,'workspace ready');
+    const setControl=(id,value,type='change')=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.value='+JSON.stringify(String(value))+';el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+
+    await setControl('interfaceSource','procedural');
+    await setControl('fixture','solid');
+    await setControl('deformBlend','1','input');
+    const before=await cdp.evaluate('(() => ({path:document.getElementById("studioPath").textContent,mass:document.getElementById("massRoot").textContent}))()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
+    const regional=await cdp.evaluate('(() => ({mode:document.querySelector(".studio-views").dataset.surfaceMode,triangles:Number(document.getElementById("studioMeshTriangles").textContent),vertices:Number(document.getElementById("studioMeshVertices").textContent),faces:Number(document.getElementById("studioRegionalFaces").textContent),unresolved:Number(document.getElementById("studioRegionalUnresolved").textContent),path:document.getElementById("studioPath").textContent,mass:document.getElementById("massRoot").textContent}))()');
+    assert.equal(regional.mode,'regional');
+    assert.ok(regional.triangles>0&&regional.vertices>0&&regional.faces>0);
+    assert.equal(regional.unresolved,0);
+    assert.equal(regional.path,before.path);
+    assert.equal(regional.mass,before.mass);
+
+    await setControl('fixture','height');
+    const procedural=await cdp.evaluate('(() => ({triangles:Number(document.getElementById("studioMeshTriangles").textContent),unresolved:Number(document.getElementById("studioRegionalUnresolved").textContent),status:document.getElementById("studioSurfaceStatus").textContent,path:document.getElementById("studioPath").textContent}))()');
+    assert.ok(procedural.triangles>0,'procedural regional view must retain proven geometry');
+    assert.ok(procedural.unresolved>0,'finite procedural regional proof must expose unresolved gaps');
+    assert.ok(procedural.status.length>0);
+    assert.equal(procedural.path,before.path);
+
+    await cdp.evaluate(`(() => {
+      window.__fgS3GridPaths=[];
+      if(window.__fgS3GridCaptureInstalled)return;
+      window.__fgS3GridCaptureInstalled=true;
+      const proto=CanvasRenderingContext2D.prototype;
+      const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,stroke=proto.stroke;
+      proto.beginPath=function(){this.__fgS3Path=[];return begin.call(this);};
+      proto.moveTo=function(x,y){this.__fgS3Path?.push([x,y]);return move.call(this,x,y);};
+      proto.lineTo=function(x,y){this.__fgS3Path?.push([x,y]);return line.call(this,x,y);};
+      proto.stroke=function(){
+        if(this.canvas?.id==='deformedView'&&this.__fgS3Path?.length>2){
+          window.__fgS3GridPaths.push(this.__fgS3Path.map(point=>[...point]));
+        }
+        return stroke.call(this);
+      };
+    })()`);
+    await cdp.evaluate('(() => {const e=document.getElementById("showReferenceGrid");e.checked=true;e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+    const grid=await cdp.evaluate('(() => ({count:(window.__fgS3GridPaths??[]).length,max:Math.max(0,...(window.__fgS3GridPaths??[]).map(path=>path.length))}))()');
+    assert.ok(grid.count>0,'deformed topology grid must draw sampled polylines');
+    assert.ok(grid.max>=9,'grid line must contain canonical intermediate samples, not only two endpoints');
+    assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions in S3 regional mode');
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});
+
+
+test('S3 adversarial regressions: discovery, regional edit, all topology paths and shared proof-gap sampling', {timeout:75000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const auditSuffix=[
+    "const __fgOriginalBuildModel=buildModel;",
+    "globalThis.__fgS3Audit={",
+    " snapshot:()=>({probe:currentProbeContext(),store:demoWorldStore,local:currentSurfaceMesh.deformed,regional:currentRegionalMesh.deformed,extraction:currentRegionalExtraction,selected:selectedVertexReference}),",
+    " project:p=>rotateProject(p,deformedCanvas),",
+    " deform:p=>currentVertexDeformation()(p),",
+    " handles:()=>selectedFaceHandles().map(v=>({...v,screen:rotateProject(currentVertexDeformation()(v.reference),deformedCanvas)})),",
+    " redraw:()=>renderGeometryLab(),",
+    " material:mat=>{buildModel=()=>({...__fgOriginalBuildModel(),root:mat});renderGeometryLab();},",
+    " restore:()=>{buildModel=__fgOriginalBuildModel;renderGeometryLab();}",
+    "};"
+  ].join("\n");
+  const temp=await mkdtemp(join(tmpdir(),'fg-s3-adversarial-'));
+  let server,chrome;
+  try{
+    const web=await startServer({appSuffix:auditSuffix});server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:1100,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(globalThis.__fgS3Audit)',true,'S3 audit hook ready');
+    const setControl=(id,value,type='change')=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.value='+JSON.stringify(String(value))+';el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+    const setCheckbox=(id,value)=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.checked='+JSON.stringify(Boolean(value))+';el.dispatchEvent(new Event("change",{bubbles:true}));})()');
+    const clearCapture=()=>cdp.evaluate("(() => {globalThis.__fgS3Fills=[];globalThis.__fgS3Strokes=[];})()");
+    const installCapture=()=>cdp.evaluate("(() => {globalThis.__fgS3Fills=[];globalThis.__fgS3Strokes=[];if(globalThis.__fgS3CaptureInstalled)return;globalThis.__fgS3CaptureInstalled=true;const p=CanvasRenderingContext2D.prototype,o={beginPath:p.beginPath,moveTo:p.moveTo,lineTo:p.lineTo,closePath:p.closePath,arc:p.arc,fill:p.fill,stroke:p.stroke};p.beginPath=function(){this.__fgS3Path=[];this.__fgS3Arc=false;this.__fgS3Closed=false;return o.beginPath.call(this);};p.moveTo=function(x,y){this.__fgS3Path?.push([x,y]);return o.moveTo.call(this,x,y);};p.lineTo=function(x,y){this.__fgS3Path?.push([x,y]);return o.lineTo.call(this,x,y);};p.closePath=function(){this.__fgS3Closed=true;return o.closePath.call(this);};p.arc=function(...args){this.__fgS3Arc=true;return o.arc.apply(this,args);};p.fill=function(...args){if(this.canvas?.id==='deformedView'&&!this.__fgS3Arc&&this.__fgS3Path?.length===3)globalThis.__fgS3Fills.push(this.__fgS3Path.map(point=>[...point]));return o.fill.apply(this,args);};p.stroke=function(...args){if(this.canvas?.id==='deformedView'&&!this.__fgS3Arc)globalThis.__fgS3Strokes.push({points:(this.__fgS3Path??[]).map(point=>[...point]),style:String(this.strokeStyle).toLowerCase(),width:this.lineWidth,dash:this.getLineDash(),closed:this.__fgS3Closed});return o.stroke.apply(this,args);};})()");
+    await installCapture();
+
+    // S3-AUD-03: selected diagnostic topology uses the same canonical crossing.
+    await setControl('probeDepth','0','input');
+    await setControl('interfaceSource','manual');
+    await setControl('mediumA','ROCK');await setControl('mediumB','EMPTY');
+    await setControl('faceAxis','z');await setControl('faceSide','1');
+    await setControl('deformBlend','1','input');await setControl('rndAmplitude','0','input');
+    await setControl('smoothingWeight','0','input');await setControl('influenceMagnitude','0','input');
+    await setCheckbox('showReferenceGrid',false);
+    await cdp.evaluate('document.querySelector("[data-view=deformed]").click()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const diagnostic=await cdp.evaluate("(() => {const center=__fgS3Audit.project([0,0,1]);const lines=(globalThis.__fgS3Strokes??[]).filter(path=>/102,\\s*235,\\s*190/.test(path.style));const distances=lines.map(line=>Math.min(...line.points.map(point=>Math.hypot(point[0]-center.x,point[1]-center.y))));return{count:lines.length,lengths:lines.map(line=>line.points.length),distances,central:distances.filter(distance=>distance<1e-7).length};})()");
+    assert.equal(diagnostic.count,6,'selected face must draw all six canonical topology polylines');
+    assert.ok(diagnostic.lengths.every(length=>length>2),'every selected topology line must contain canonical intermediate vertices');
+    assert.equal(diagnostic.central,2,'the two central selected topology lines must share the canonical crossing');
+
+    // S3-REAUD-01: root and fine selected grids share the exact depth-4 crossing.
+    await setCheckbox('showReferenceGrid',true);
+    await setControl('rndAmplitude','.12','input');
+    await setControl('smoothingWeight','.2','input');
+    await cdp.evaluate('(() => {const e=document.getElementById("studioChildOctant");for(const branch of ["7","6","7"]){e.value=branch;document.getElementById("studioChildButton").click();}})()');
+    assert.equal(await cdp.evaluate('document.getElementById("studioPath").textContent'),'/7/6/7');
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const deepCrossing=await cdp.evaluate("(() => {const p=__fgS3Audit.project(__fgS3Audit.deform([.5,.875,1]));const strokes=globalThis.__fgS3Strokes??[];const root=strokes.filter(path=>/121,\\s*150,\\s*174/.test(path.style));const selected=strokes.filter(path=>/102,\\s*235,\\s*190/.test(path.style));const nearest=paths=>Math.min(...paths.flatMap(path=>path.points.map(point=>Math.hypot(point[0]-p.x,point[1]-p.y))));return{rootCount:root.length,selectedCount:selected.length,rootDistance:nearest(root),selectedDistance:nearest(selected)};})()");
+    assert.ok(deepCrossing.rootCount>0&&deepCrossing.selectedCount>0);
+    assert.ok(deepCrossing.rootDistance<1e-7,'root topology grid must include the fine canonical crossing');
+    assert.ok(deepCrossing.selectedDistance<1e-7,'selected fine topology grid must include the same canonical crossing');
+    await cdp.evaluate('document.getElementById("studioParent").click();document.getElementById("studioParent").click();document.getElementById("studioParent").click()');
+    await setCheckbox('showReferenceGrid',false);
+
+    // S3-AUD-04: unresolved perimeter and proven boundary use one target-depth sampling contract.
+    await setControl('interfaceSource','procedural');await setControl('fixture','height');
+    await setControl('rndAmplitude','.12','input');await setControl('smoothingWeight','.2','input');
+    await setControl('influenceMagnitude','0','input');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const gap=await cdp.evaluate("(async()=>{const c=await import('/src/fractal-matter.mjs'),s=__fgS3Audit.snapshot(),mesh=s.regional,ex=s.extraction,gaps=(globalThis.__fgS3Strokes??[]).filter(path=>path.style==='#f3b35c'&&path.closed),emap=new Map();for(let ti=0;ti<mesh.triangles.length;ti++){const tri=mesh.triangles[ti];for(let j=0;j<3;j++){const a=mesh.vertices[tri.indices[j]],b=mesh.vertices[tri.indices[(j+1)%3]],key=[a.key,b.key].sort().join('|');if(!emap.has(key))emap.set(key,[]);emap.get(key).push({ti,a,b});}}function corners(item){const box=c.octreeBoundsForPath(item.pathA),ai=['x','y','z'].indexOf(item.axis),ts=[0,1,2].filter(i=>i!==ai);return [[0,0],[1,0],[1,1],[0,1]].map(([u,v])=>{const p=[0,0,0];p[ai]=item.side===1?box.max[ai]:box.min[ai];p[ts[0]]=box.min[ts[0]]+u*(box.max[ts[0]]-box.min[ts[0]]);p[ts[1]]=box.min[ts[1]]+v*(box.max[ts[1]]-box.min[ts[1]]);return p;});}let witness=null;for(let i=0;i<ex.unresolved.length;i++){const item=ex.unresolved[i],vs=corners(item),path=gaps[i];if(!path)continue;for(let edge=0;edge<4;edge++){const a=vs[edge],b=vs[(edge+1)%4],key=[c.referenceVertexKey(a),c.referenceVertexKey(b)].sort().join('|'),tri=(emap.get(key)??[]).find(entry=>mesh.patches[mesh.triangles[entry.ti].patchIndex].axis===item.axis);if(!tri)continue;const samplesPerEdge=path.points.length/4,pa=__fgS3Audit.project(tri.a.position),pb=__fgS3Audit.project(tri.b.position),vx=pb.x-pa.x,vy=pb.y-pa.y;for(let sample=0;sample<samplesPerEdge;sample++){const painted=path.points[edge*samplesPerEdge+sample],t=Math.max(0,Math.min(1,((painted[0]-pa.x)*vx+(painted[1]-pa.y)*vy)/(vx*vx+vy*vy))),distance=Math.hypot(painted[0]-pa.x-t*vx,painted[1]-pa.y-t*vy);if(!witness||distance>witness.distance)witness={distance,targetDepth:mesh.stats.targetDepth,proofDepth:item.depth,samplesPerEdge};}}}return{witness,gaps:gaps.length,unresolved:ex.unresolved.length};})()");
+    assert.ok(gap.gaps>0&&gap.unresolved>0);
+    assert.ok(gap.witness);
+    assert.ok(gap.witness.distance<1e-7,'regional unresolved contour must lie on the actual proven boundary polyline');
+
+    // S3-AUD-01: material-aware discovery finds an internal D island inside a coarse regional cell.
+    await clearCapture();
+    const island=await cdp.evaluate("(async()=>{const c=await import('/src/fractal-matter.mjs');const material=c.makeMaterial({id:'island',gamma:c.makeGamma({fixture:'solid'}),edits:[{path:[],value:c.EMPTY},{path:[0,7,0,7],value:c.solid('rock',1)}]});__fgS3Audit.material(material);globalThis.__fgS3Fills=[];__fgS3Audit.redraw();const s=__fgS3Audit.snapshot();return{present:s.extraction.present.length,unresolved:s.extraction.unresolved.length,unresolvedCells:s.extraction.unresolvedCells?.length??0,triangles:s.regional.triangles.length,fills:globalThis.__fgS3Fills.length,point:c.queryMaterial(material,[-.3125,-.3125,-.3125])};})()");
+    assert.equal(island.point.kind,'SOLID');
+    assert.equal(island.present,6);
+    assert.equal(island.unresolved,0);
+    assert.equal(island.unresolvedCells,0);
+    assert.equal(island.triangles,12);
+    assert.equal(island.fills,island.triangles,'Regional acceptance must observe actual triangle fill paths');
+
+    // S3-AUD-02: a native Regional vertex drag changes the persisted final fill and survives Split.
+    await cdp.evaluate('__fgS3Audit.restore()');
+    await setControl('interfaceSource','procedural');await setControl('fixture','solid');
+    await setControl('probeDepth','0','input');await setControl('faceAxis','z');await setControl('faceSide','1');
+    await setControl('deformBlend','0','input');await setControl('rndAmplitude','0','input');
+    await setControl('smoothingWeight','0','input');await setControl('influenceMagnitude','0','input');
+    await setControl('influenceThreshold','.045','input');await setControl('influenceCompliance','1','input');
+    await cdp.evaluate('(() => {const e=document.getElementById("studioChildOctant");e.value="7";document.getElementById("studioChildButton").click();e.value="7";document.getElementById("studioChildButton").click();})()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=regional]").click()');
+    await setCheckbox('studioVertexEdit',true);
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const beforeEdit=await cdp.evaluate("(() => {const s=__fgS3Audit.snapshot(),count=s.regional.triangles.length;return{regional:s.regional,fills:(globalThis.__fgS3Fills??[]).slice(-count),rings:Object.keys(s.store.records).length,hasVertex:s.regional.vertices.some(vertex=>vertex.key==='0.75,0.75,1')};})()");
+    assert.equal(beforeEdit.rings,0);
+    assert.equal(beforeEdit.hasVertex,true,'editable canonical center must be sampled by Regional mesh');
+    assert.equal(beforeEdit.fills.length,beforeEdit.regional.triangles.length);
+    const hit=await cdp.evaluate("(async()=>{const canvas=document.getElementById('deformedView');canvas.scrollIntoView({block:'center'});await new Promise(requestAnimationFrame);const h=__fgS3Audit.handles().find(vertex=>vertex.key==='0.75,0.75,1'),rect=canvas.getBoundingClientRect(),x=rect.left+h.screen.x*rect.width/canvas.width,y=rect.top+h.screen.y*rect.height/canvas.height;return{x,y,over:document.elementFromPoint(x,y)===canvas};})()");
+    assert.equal(hit.over,true,'Regional edit pointer must target the visible deformed canvas');
+    await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:hit.x,y:hit.y,button:'left',clickCount:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:hit.x+65,y:hit.y-15,button:'left',buttons:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:hit.x+65,y:hit.y-15,button:'left',clickCount:1});
+    await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
+    const afterEdit=await cdp.evaluate("(() => {const s=__fgS3Audit.snapshot(),count=s.regional.triangles.length;return{regional:s.regional,fills:(globalThis.__fgS3Fills??[]).slice(-count),rings:Object.keys(s.store.records).length};})()");
+    assert.equal(afterEdit.rings,1);
+    assert.notDeepEqual(afterEdit.regional,beforeEdit.regional,'persisted offset must change the actual Regional mesh');
+    assert.notDeepEqual(afterEdit.fills,beforeEdit.fills,'persisted offset must change post-release Regional triangle fill paths');
+    await clearCapture();await cdp.evaluate('document.getElementById("studioSplitRing").click();globalThis.__fgS3Fills=[];__fgS3Audit.redraw()');
+    const afterSplit=await cdp.evaluate("(() => {const s=__fgS3Audit.snapshot(),count=s.regional.triangles.length;return{regional:s.regional,fills:(globalThis.__fgS3Fills??[]).slice(-count)};})()");
+    assert.deepEqual(afterSplit.regional,afterEdit.regional);
+    assert.deepEqual(afterSplit.fills,afterEdit.fills);
+
+    assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions under S3 adversarial regressions');
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
     await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
   }
 });

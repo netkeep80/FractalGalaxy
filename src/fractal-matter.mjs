@@ -507,3 +507,24 @@ export {
 } from './rings/interaction-hierarchy.mjs';
 
 export { assembleProvenSurfaceMesh } from './geometry/surface-mesh.mjs';
+
+
+export {
+  octreePathsAtDepth,
+  enumerateRegionalFacePairs,
+  extractRegionalMaterialInterfaces
+} from './surface/regional-extractor.mjs';
+
+export {
+  discoverAdaptiveRegionalLeaves,
+  enumerateAdaptiveRegionalFacePairs,
+  extractAdaptiveRegionalMaterialInterfaces,
+  extractDiscoveredRegionalMaterialInterfaces
+} from './surface/adaptive-regional-extractor.mjs';
+
+export { stitchCoarseFineInterface } from './geometry/coarse-fine-stitch.mjs';
+export { assembleRegionalSurfaceMesh } from './geometry/regional-surface-mesh.mjs';
+export {
+  buildCanonicalTopologyLines,
+  buildCanonicalTopologyGrid
+} from './geometry/topology-grid.mjs';
