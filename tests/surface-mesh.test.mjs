@@ -103,7 +103,28 @@ test('center vertex of a proven whole face participates in render tessellation, 
   assert.notDeepEqual(moved,baseline);
   assert.equal(extraction.present.length,1,'tessellation must not change proof');
   assert.equal(extraction.unresolved.length,0);
-  assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:5}),/tessellation depth/);
+  for(const invalid of [-1,.5,NaN,Infinity,'1',null,5]){
+    assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:invalid}),/tessellation depth/);
+  }
+});
+
+test('render tessellation depths 0 through 4 change geometry only and never fill unresolved proof gaps',()=>{
+  const extraction=classified(rock,empty);
+  for(let depth=0;depth<=4;depth++){
+    const m=assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:depth});
+    const side=2**depth;
+    assert.deepEqual(m.stats,{
+      provenPatches:1,renderQuads:4**depth,unresolvedPatches:0,
+      vertices:(side+1)**2,triangles:2*4**depth
+    });
+    assert.equal(extraction.present.length,1);
+  }
+  const unresolved=classified(()=>mixedVolume(),empty,2);
+  for(let depth=0;depth<=4;depth++){
+    const m=assembleProvenSurfaceMesh({...cfg,extraction:unresolved,tessellationDepth:depth});
+    assert.equal(m.triangles.length,0);assert.equal(m.vertices.length,0);
+    assert.equal(m.unresolved.length,unresolved.unresolved.length);
+  }
 });
 
 test('mixed face may have proven triangles and unresolved holes without fabricated closure',()=>{

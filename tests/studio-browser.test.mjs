@@ -159,6 +159,55 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
 });
 
 
+test('S2 rendering regressions: fresh mode roundtrip and curved local depth ordering', {timeout:30000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const temp=await mkdtemp(join(tmpdir(),'fg-s2-rendering-'));
+  let server,chrome;
+  try{
+    const web=await startServer();server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))',true,'workspace ready');
+    const setControl=(id,value,type='change')=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.value='+JSON.stringify(String(value))+';el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+    await setControl('probeDepth','0','input');
+    await setControl('interfaceSource','manual');
+    await setControl('mediumA','ROCK');await setControl('mediumB','EMPTY');
+    await setControl('faceAxis','z');await setControl('faceSide','1');
+    await setControl('deformBlend','0','input');await setControl('rndAmplitude','0','input');
+    await setControl('smoothingWeight','0','input');await setControl('influenceMagnitude','0','input');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+    const before=await cdp.evaluate('document.getElementById("referenceView").toDataURL()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+    assert.equal(await cdp.evaluate('document.getElementById("referenceView").toDataURL()'),before,
+      'first Surface→Diagnostics→Surface roundtrip on a fresh Canvas context must be pixel-identical');
+
+    await setControl('deformBlend','1','input');
+    await setControl('smoothingWeight','.2','input');
+    await cdp.evaluate('document.querySelector("[data-view=deformed]").click()');
+    const point=await cdp.evaluate('(async()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);const r=c.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()');
+    await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x-174,y:point.y-151,button:'left',buttons:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x-174,y:point.y-151,button:'left',clickCount:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseWheel',x:point.x-174,y:point.y-151,deltaX:0,deltaY:-Math.log(10/7)*1000});
+    const pixel=await cdp.evaluate('[...document.getElementById("deformedView").getContext("2d").getImageData(194,335,1,1).data]');
+    assert.deepEqual(pixel,[29,144,109,255],
+      'nearest curved local triangle must supply the opaque overlap pixel');
+    assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions under S2 rendering regressions');
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});
+
 test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limits and persistent language', {timeout:45000}, async t => {
   const binary = chromeBinary();
   if (!binary) {

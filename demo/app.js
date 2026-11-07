@@ -37,7 +37,7 @@ import {
   geometryVertexOffsets,
   assembleProvenSurfaceMesh
 } from './src/fractal-matter.mjs';
-import {paintProvenSurface} from './studio-surface-renderer.mjs';
+import {paintProvenSurface,proofGapBoundaryVertices} from './studio-surface-renderer.mjs';
 import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from './studio-vertex-editor.mjs';
 import {createStudioHierarchyUI} from './studio-tree.mjs';
 import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
@@ -328,6 +328,7 @@ let lastInfluenceResult=null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 let currentSurfaceMesh = { reference: null, deformed: null };
 let studioSurfaceMode = 'surface';
+const SURFACE_TESSELLATION_DEPTH=1;
 
 function classificationFor(value) {
   return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
@@ -610,13 +611,17 @@ function drawAxes(context, canvasElement, deformed) {
     [[0,0,0], [0,1.25,0], 'Y'],
     [[0,0,0], [0,0,1.25], 'Z']
   ];
+  context.save();
   context.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  context.textAlign = 'start';
+  context.textBaseline = 'alphabetic';
   for (const [a,b,label] of axes) {
     drawLine(context, canvasElement, a, b, { deformed: false, stroke: 'rgba(255,255,255,.24)', width: 1 });
     const p = rotateProject(b, canvasElement);
     context.fillStyle = '#637b90';
     context.fillText(label, p.x + 4, p.y - 4);
   }
+  context.restore();
 }
 
 function drawContextHierarchy(context, canvasElement, deformed) {
@@ -675,11 +680,15 @@ function drawProofGaps(context,canvasElement,bounds,axis,side,deformed){
   context.lineWidth=2;
   context.setLineDash([6,5]);
   context.strokeStyle='#f3b35c';
-  // No fill. These outlines identify unresolved proof regions, NOT material.
+  // No fill. Boundary sampling matches the proven mesh tessellation but
+  // never creates unresolved quads/triangles or changes material proof.
   for(const item of currentSurfaceExtraction.unresolved){
-    const geo=buildSurfacePatchGeometry({bounds,axis,side,patch:item.patch,deformation:deform});
-    const projected=(deformed?geo.deformedVertices:geo.referenceVertices)
-      .map(point=>rotateProject(point,canvasElement));
+    const boundary=proofGapBoundaryVertices({
+      bounds,axis,side,patch:item.patch,deformation:deform,
+      tessellationDepth:SURFACE_TESSELLATION_DEPTH
+    });
+    const projected=boundary
+      .map(vertex=>rotateProject(deformed?vertex.position:vertex.reference,canvasElement));
     context.beginPath();
     context.moveTo(projected[0].x,projected[0].y);
     for(const p of projected.slice(1))context.lineTo(p.x,p.y);
@@ -718,6 +727,8 @@ function refreshSurfaceDisplayInfo(){
 function drawGeometry(canvasElement, deformed) {
   const context = canvasElement.getContext('2d');
   context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  context.save();
+  try {
 
   const gradient = context.createRadialGradient(
     canvasElement.width * .48, canvasElement.height * .42, 10,
@@ -734,6 +745,9 @@ function drawGeometry(canvasElement, deformed) {
   else drawSelectedFace(context,canvasElement,deformed);
   drawAxes(context,canvasElement,deformed);
   if(deformed)drawEditableVertices(context,canvasElement);
+  } finally {
+    context.restore();
+  }
 }
 
 function describeInterface(result) {
@@ -829,7 +843,7 @@ function renderGeometryLab() {
     extraction:currentSurfaceExtraction,bounds:probe.boundsA,axis,side,
     // Geometric-only 2×2 sampling includes the central editable face vertex.
     // Does not materialize new material patches or expand unresolved regions.
-    tessellationDepth:1
+    tessellationDepth:SURFACE_TESSELLATION_DEPTH
   };
   currentSurfaceMesh={
     reference:assembleProvenSurfaceMesh({...geometryOptions}),
