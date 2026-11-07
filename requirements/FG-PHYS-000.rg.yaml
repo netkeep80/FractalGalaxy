@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-PHYS-000
+normative: "### FG-PHYS-000 — Физическая композиция и взаимодействия\n\nСистема должна поддерживать явные физические операции над индивидуализированными объектами, сохраняя материальные и процедурные инварианты при Contact, Attach, Detach, Split и вычислении динамических характеристик."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PRODUCT-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"

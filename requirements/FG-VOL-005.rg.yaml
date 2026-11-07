@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-VOL-005
+normative: "### FG-VOL-005 — Отсутствие persistent записи не является EMPTY\n\nОтсутствие FractalRing/WorldStore record не должно интерпретироваться как пустая среда. EMPTY, VACUUM или иная среда являются результатом material/procedural model, а не отсутствием persistent объекта."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VOL-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e1-world-store.md"

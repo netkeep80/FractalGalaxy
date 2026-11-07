@@ -22,3 +22,7 @@ relations:
     target:
       kind: artifact
       path: "docs/e0-contract.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-MAT-000

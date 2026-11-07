@@ -22,3 +22,7 @@ relations:
     target:
       kind: artifact
       path: "docs/acceptance-matrix.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VERIFY-000

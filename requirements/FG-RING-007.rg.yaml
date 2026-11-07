@@ -22,3 +22,7 @@ relations:
     target:
       kind: artifact
       path: "docs/e1-sparse-fractalring.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-000

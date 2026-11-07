@@ -26,3 +26,7 @@ relations:
     target:
       kind: artifact
       path: "docs/research-register.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-VERIFY-000

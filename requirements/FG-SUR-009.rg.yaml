@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-SUR-009
+normative: "### FG-SUR-009 — Внешние и внутренние интерфейсы\n\nОбщий механизм определения границы должен поддерживать как внешний интерфейс вещество/EMPTY, так и внутренний интерфейс двух различных непустых сред, не отождествляя эти случаи."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-SUR-000
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/surface/interface.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/surface-geometry.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

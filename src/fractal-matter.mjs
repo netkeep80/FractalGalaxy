@@ -279,3 +279,32 @@ export {
   loadPersistentWorldStore,
   validateWorldStore
 } from './storage/world-store.mjs';
+
+export {
+  VOLUME_HOMOGENEOUS,
+  VOLUME_MIXED,
+  homogeneousVolume,
+  mixedVolume,
+  isHomogeneousVolume,
+  validateVolumeClassification,
+  aggregateCompleteOctants
+} from './volume/classification.mjs';
+
+export {
+  INTERFACE_NONE,
+  INTERFACE_PRESENT,
+  INTERFACE_REFINE,
+  classifyMaterialInterface,
+  incidentOctantsForFace,
+  makeReferenceFacePatch,
+  subdivideReferenceFacePatch
+} from './surface/interface.mjs';
+
+export {
+  cellLocalToReference,
+  identityDeformation,
+  deformReferencePoint,
+  cubeToSphereDeformation,
+  translateMaterialPoint
+} from './geometry/deformation.mjs';
+

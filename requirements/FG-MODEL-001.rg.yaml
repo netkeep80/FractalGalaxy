@@ -18,3 +18,7 @@ relations:
     target:
       kind: artifact
       path: "docs/architecture.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PRODUCT-000

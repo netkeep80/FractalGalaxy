@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-PRODUCT-000
+normative: "### FG-PRODUCT-000 — Требования к продукту FractalGalaxy\n\nДвижок FractalGalaxy должен предоставлять целостную модель процедурной фрактальной материи, разреженного индивидуализированного состояния, физического взаимодействия, сохранения мира и производного отображения. Детальные свойства продукта должны выводиться из этого требования через отдельные independently verifiable Requirements."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"

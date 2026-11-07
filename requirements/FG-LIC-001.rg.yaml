@@ -14,3 +14,7 @@ relations:
     target:
       kind: artifact
       path: "docs/vision-and-scope.md"
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PROJECT-000

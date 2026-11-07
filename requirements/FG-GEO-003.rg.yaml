@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-GEO-003
+normative: "### FG-GEO-003 — Согласованность общей деформированной границы\n\nОдна и та же каноническая reference point на общей вершине, ребре или грани смежных cells должна отображаться в одну и ту же deformed material coordinate независимо от стороны, через которую выполнен запрос."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-GEO-000
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/deformation.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/surface-geometry.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/surface-and-geometry.md"

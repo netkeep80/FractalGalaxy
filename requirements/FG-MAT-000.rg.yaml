@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-MAT-000
+normative: "### FG-MAT-000 — Авторитетное материальное состояние\n\nСистема должна иметь единственный авторитетный способ определения текущей материи и её изменений независимо от производных визуальных, коллизионных и массовых представлений."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PRODUCT-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-hierarchy.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
