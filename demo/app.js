@@ -1007,6 +1007,11 @@ function createStudioWorkspace() {
       if(JSON.stringify(prior[key])!==JSON.stringify(next[key]))throw Error('vertex changed during ring split: '+key);
     }
     demoWorldStore=result.store;
+    // Expand every affected source branch, not only the parent prefix.
+    // Source/impact trees remain sparse and display only records already in WorldStore.
+    for(const id of result.created) {
+      studioTreeUi?.onStoreChanged({source:demoWorldStore.records[id].source});
+    }
     studioTreeUi?.onStoreChanged({source,ringId:activeImpactRingId,physicalParentId:activeImpactRingId});
     studioTreeUi?.open('physical');
     renderGeometryLab();
