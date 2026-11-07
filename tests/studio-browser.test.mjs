@@ -94,7 +94,7 @@ function connectCdp(socket) {
   }
   async function evaluate(expression) {
     const response = await send('Runtime.evaluate', { expression, returnByValue:true, awaitPromise:true });
-    if (response.exceptionDetails) throw new Error(response.exceptionDetails.text);
+    if (response.exceptionDetails) throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text);
     return response.result?.value;
   }
   async function until(expression, expected, label) {
@@ -233,7 +233,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('parent, breadcrumb root and depth limit are enforced', async () => {
-      await cdp.evaluate('document.querySelector("#studioBreadcrumbs button[data-depth=0]").click()');
+      await cdp.evaluate('document.getElementById("studioBreadcrumbs").querySelectorAll("button")[0].click()');
       assert.equal((await inspect()).path,'/');
       assert.equal((await inspect()).level,0);
       assert.equal(await cdp.evaluate('document.getElementById("studioParent").disabled'),true);
