@@ -23,12 +23,14 @@ function signedArea(points){
   return twice/2;
 }
 function edgeSide(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
-function lineIntersection(a,b,c,d){
-  const abx=b.x-a.x,aby=b.y-a.y,cdx=d.x-c.x,cdy=d.y-c.y;
+const clipScratchA=new Float64Array(16);
+const clipScratchB=new Float64Array(16);
+function clipIntersectionXY(ax,ay,bx,by,cx,cy,dx,dy){
+  const abx=bx-ax,aby=by-ay,cdx=dx-cx,cdy=dy-cy;
   const denominator=abx*cdy-aby*cdx;
-  if(Math.abs(denominator)<1e-12)return {x:b.x,y:b.y};
-  const t=((c.x-a.x)*cdy-(c.y-a.y)*cdx)/denominator;
-  return {x:a.x+t*abx,y:a.y+t*aby};
+  if(Math.abs(denominator)<1e-12)return [bx,by];
+  const t=((cx-ax)*cdy-(cy-ay)*cdx)/denominator;
+  return [ax+t*abx,ay+t*aby];
 }
 function separatedOnAxis(a,b,nx,ny){
   if(Math.abs(nx)+Math.abs(ny)<1e-15)return false;
@@ -50,32 +52,16 @@ function trianglesMayOverlapArea(a,b){
   }
   return true;
 }
-function triangleIntersectionPolygon(subject,clip){
-  let polygon=subject.map(({x,y})=>({x,y}));
-  const orientation=signedArea(clip)>=0?1:-1;
-  for(let edge=0;edge<3&&polygon.length;edge++){
-    const a=clip[edge],b=clip[(edge+1)%3],input=polygon;
-    polygon=[];
-    for(let i=0;i<input.length;i++){
-      const current=input[i],previous=input[(i+input.length-1)%input.length];
-      const currentInside=orientation*edgeSide(a,b,current)>=-1e-9;
-      const previousInside=orientation*edgeSide(a,b,previous)>=-1e-9;
-      if(currentInside!==previousInside)polygon.push(lineIntersection(previous,current,a,b));
-      if(currentInside)polygon.push(current);
-    }
-  }
-  return polygon;
-}
-function interpolatedDepth(points,p){
-  const [a,b,c]=points;
+function interpolatedDepthXY(points,x,y){
+  const a=points[0],b=points[1],c=points[2];
   const denominator=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
   if(Math.abs(denominator)<1e-12)return null;
-  const wa=((b.y-c.y)*(p.x-c.x)+(c.x-b.x)*(p.y-c.y))/denominator;
-  const wb=((c.y-a.y)*(p.x-c.x)+(a.x-c.x)*(p.y-c.y))/denominator;
+  const wa=((b.y-c.y)*(x-c.x)+(c.x-b.x)*(y-c.y))/denominator;
+  const wb=((c.y-a.y)*(x-c.x)+(a.x-c.x)*(y-c.y))/denominator;
   return wa*a.depth+wb*b.depth+(1-wa-wb)*c.depth;
 }
-// Returns +1 when a is consistently nearer than b over their projected overlap,
-// -1 when b is nearer, and 0 when they do not overlap in area or cross each other.
+// Same Sutherland-Hodgman semantics as the original object-allocating clipper,
+// but all intermediate overlap vertices live in two fixed scratch buffers.
 function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
@@ -84,15 +70,49 @@ function projectedDepthRelation(a,b,counters=null){
     return 0;
   }
   if(counters)counters.clipCalls++;
-  const overlap=triangleIntersectionPolygon(a.points,b.points);
-  if(overlap.length<3||Math.abs(signedArea(overlap))<1e-6)return 0;
-  const samples=[...overlap,{
-    x:overlap.reduce((sum,p)=>sum+p.x,0)/overlap.length,
-    y:overlap.reduce((sum,p)=>sum+p.y,0)/overlap.length
-  }];
+
+  let input=clipScratchA,output=clipScratchB,count=3;
+  for(let i=0;i<3;i++){
+    input[i*2]=a.points[i].x;
+    input[i*2+1]=a.points[i].y;
+  }
+  const orientation=signedArea(b.points)>=0?1:-1;
+  for(let edge=0;edge<3&&count;edge++){
+    const ca=b.points[edge],cb=b.points[(edge+1)%3];
+    let outCount=0;
+    let previousX=input[(count-1)*2],previousY=input[(count-1)*2+1];
+    let previousInside=orientation*((cb.x-ca.x)*(previousY-ca.y)-(cb.y-ca.y)*(previousX-ca.x))>=-1e-9;
+    for(let i=0;i<count;i++){
+      const currentX=input[i*2],currentY=input[i*2+1];
+      const currentInside=orientation*((cb.x-ca.x)*(currentY-ca.y)-(cb.y-ca.y)*(currentX-ca.x))>=-1e-9;
+      if(currentInside!==previousInside){
+        const [ix,iy]=clipIntersectionXY(previousX,previousY,currentX,currentY,ca.x,ca.y,cb.x,cb.y);
+        output[outCount*2]=ix;output[outCount*2+1]=iy;outCount++;
+      }
+      if(currentInside){
+        output[outCount*2]=currentX;output[outCount*2+1]=currentY;outCount++;
+      }
+      previousX=currentX;previousY=currentY;previousInside=currentInside;
+    }
+    count=outCount;
+    const swap=input;input=output;output=swap;
+  }
+  if(count<3)return 0;
+
+  let twiceArea=0,sumX=0,sumY=0;
+  for(let i=0;i<count;i++){
+    const j=(i+1)%count;
+    const x=input[i*2],y=input[i*2+1];
+    twiceArea+=x*input[j*2+1]-input[j*2]*y;
+    sumX+=x;sumY+=y;
+  }
+  if(Math.abs(twiceArea/2)<1e-6)return 0;
+
   let relation=0;
-  for(const sample of samples){
-    const ad=interpolatedDepth(a.points,sample),bd=interpolatedDepth(b.points,sample);
+  for(let i=0;i<=count;i++){
+    const x=i<count?input[i*2]:sumX/count;
+    const y=i<count?input[i*2+1]:sumY/count;
+    const ad=interpolatedDepthXY(a.points,x,y),bd=interpolatedDepthXY(b.points,x,y);
     if(ad===null||bd===null)return 0;
     const delta=ad-bd;
     if(Math.abs(delta)<1e-8)continue;
