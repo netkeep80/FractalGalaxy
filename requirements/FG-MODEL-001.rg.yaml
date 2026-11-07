@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-MODEL-001
 normative: "### FG-MODEL-001 — Разделение процедурной и персистентной иерархий\n\nПроцедурное пространственное разбиение, включая octree-адресацию, не должно само по себе создавать FractalRing. Процедурная иерархия определяет потенциальное каноническое состояние мира, а персистентная иерархия FractalRing хранит индивидуализированные либо изменённые состояния."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

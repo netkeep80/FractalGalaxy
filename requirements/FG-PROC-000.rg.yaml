@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-PROC-000
 normative: "### FG-PROC-000 — Процедурное происхождение и генеративный контекст\n\nСистема должна воспроизводимо определять потенциальное процедурное состояние по стабильному источнику, адресу, версии алгоритма и замкнутому генеративному контексту независимо от текущей физической композиции."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

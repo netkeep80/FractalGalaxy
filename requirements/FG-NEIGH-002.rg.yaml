@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-NEIGH-002
 normative: "### FG-NEIGH-002 — Стабильные ссылки на исходное соседство\n\nЗависимости генерации от соседних областей должны задаваться через стабильные процедурные ссылки или эквивалентный неизменяемый контекст, а не через текущее физическое соседство FractalRing."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

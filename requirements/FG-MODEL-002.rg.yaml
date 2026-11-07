@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-MODEL-002
 normative: "### FG-MODEL-002 — Каноническое процедурное состояние\n\nДля поддерживаемого процедурного адреса система должна иметь возможность определить источник и каноническое состояние области из её процедурного корня, адреса, алгоритма, параметров и генеративного контекста без обязательного существования соответствующего FractalRing."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

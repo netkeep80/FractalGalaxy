@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-MRG-003
 normative: "### FG-MRG-003 — Сохранение мировых координат при присоединении\n\nПри Attach система должна вычислять локальные преобразования детей в новом физическом родителе так, чтобы мировые координаты соответствующих материальных точек и ориентации детей не изменились непосредственно в момент перехода, с явным единым базисом и допусками E0."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

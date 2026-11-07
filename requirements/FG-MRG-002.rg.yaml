@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-MRG-002
 normative: "### FG-MRG-002 — Сохранение контекста при присоединении\n\nПри Attach система должна сохранить у каждого ребёнка его B, D, полное Γ, процедурные адреса, входы соседства, исходное состояние генератора и материальные маски. Родитель K не должен переопределять источник генерации своих детей."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

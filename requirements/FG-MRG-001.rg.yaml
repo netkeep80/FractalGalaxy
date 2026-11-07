@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-MRG-001
 normative: "### FG-MRG-001 — Явное присоединение\n\nЯвная операция присоединения (Attach) двух различных живых независимых корней с совместимым жёстким движением должна создавать новый родительский FractalRing K со своей системой координат и двумя исходными дочерними объектами. Повторные, отсутствующие, некорневые и кинематически несовместимые входы должны отклоняться атомарно."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]
