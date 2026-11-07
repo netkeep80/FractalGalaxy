@@ -17,7 +17,6 @@ test('project version is canonical SemVer and synchronized with package.json',as
     text('package.json').then(JSON.parse)
   ]);
   assert.match(versionJson.version,/^\d+\.\d+\.\d+$/);
-  assert.equal(versionJson.version,'0.0.2','bootstrap merge is the first project-version increment');
   assert.equal(packageJson.version,versionJson.version);
 });
 
@@ -51,6 +50,7 @@ test('merged PR workflow serializes patch bumps and protects bootstrap from doub
   assert.match(workflow,/branches:\s*\[main\]/);
   assert.match(workflow,/pull_request\.merged\s*==\s*true/);
   assert.match(workflow,/contents:\s*write/);
+  assert.match(workflow,/actions:\s*write/);
   assert.match(workflow,/group:\s*project-version-main/);
   assert.match(workflow,/cancel-in-progress:\s*false/);
   assert.match(workflow,/base\.sha/);
@@ -58,6 +58,7 @@ test('merged PR workflow serializes patch bumps and protects bootstrap from doub
   assert.match(workflow,/scripts\/bump-version\.mjs/);
   assert.match(workflow,/git push origin HEAD:main/);
   assert.match(workflow,/for attempt in 1 2 3/);
+  assert.match(workflow,/gh workflow run pages\.yml --ref main/);
 });
 
 test('GitHub Pages publishes version metadata and Studio renders project + protocol versions',async()=>{

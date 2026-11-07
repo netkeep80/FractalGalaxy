@@ -7,6 +7,7 @@ on:
       - "demo/**"
       - "src/**"
       - "tests/web-demo.test.mjs"
+      - "version.json"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -43,6 +44,7 @@ jobs:
           mkdir -p .pages/src
           cp demo/index.html demo/app.js demo/styles.css demo/studio-picking.mjs demo/studio-i18n.mjs demo/studio-hierarchy.mjs demo/studio-tree.mjs demo/studio-vertex-editor.mjs demo/studio-surface-renderer.mjs .pages/
           cp -R src/. .pages/src/
+          cp version.json .pages/version.json
           touch .pages/.nojekyll
 
       - name: Upload Pages artifact

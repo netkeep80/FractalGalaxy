@@ -1,0 +1,44 @@
+format: repo-guard/requirement-v1
+id: FG-PROJECT-001
+normative: "### FG-PROJECT-001 — Каноническая версия проекта и инкремент после merge\n\nПроект должен иметь каноническую SemVer-версию, синхронизированную с package metadata. Каждый merged pull request в main должен увеличивать PATCH ровно на единицу без рекурсивного самоинкремента и без потери инкремента при конкурирующих merge. GitHub Pages должен публиковать и визуально показывать текущую project version отдельно от E0 protocol version."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-PROJECT-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/versioning.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "version.json"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "scripts/bump-version.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: ".github/workflows/version-bump.yml"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: ".github/workflows/pages.yml"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/project-version.test.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"

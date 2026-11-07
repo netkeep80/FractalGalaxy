@@ -23,8 +23,11 @@ async function startServer({appSuffix=''}={}) {
       const url = new URL(req.url, 'http://localhost');
       const path = decodeURIComponent(url.pathname);
       const fromSrc = path === '/src' || path.startsWith('/src/');
-      const base = resolve(root, fromSrc ? 'src' : 'demo');
-      const rel = fromSrc ? path.replace(/^\/src\/?/, '') : (path === '/' ? 'index.html' : path.slice(1));
+      const fromProjectRoot = path === '/version.json';
+      const base = resolve(root, fromProjectRoot ? '.' : (fromSrc ? 'src' : 'demo'));
+      const rel = fromProjectRoot
+        ? 'version.json'
+        : (fromSrc ? path.replace(/^\/src\/?/, '') : (path === '/' ? 'index.html' : path.slice(1)));
       const full = resolve(base, rel);
       if (!full.startsWith(base + '/') || full.includes('/.git/')) {
         res.writeHead(403); res.end(); return;
@@ -127,6 +130,16 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
     await cdp.send('Runtime.enable');
     await cdp.send('Page.navigate', { url:web.url });
     await cdp.until('Boolean(document.getElementById("studioLanguage"))', true, 'workspace initialization');
+    const expectedProjectVersion=JSON.parse(await readFile(join(root,'version.json'),'utf8')).version;
+    await cdp.until(
+      'document.getElementById("version").dataset.projectVersion === '+JSON.stringify(expectedProjectVersion),
+      true,
+      'project version badge'
+    );
+    assert.equal(
+      await cdp.evaluate('document.getElementById("version").textContent'),
+      'v'+expectedProjectVersion+' · e0-prototype-1'
+    );
     assert.equal(await cdp.evaluate('document.querySelector(".studio-inspector") !== null'), true);
     assert.equal(await cdp.evaluate('document.getElementById("studioLevel").textContent'), '2');
 
