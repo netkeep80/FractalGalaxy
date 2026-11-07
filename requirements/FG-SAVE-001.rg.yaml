@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-SAVE-001
+normative: "### FG-SAVE-001 — Холодное сохранение и восстановление мира\n\nСистема должна из полного снимка в новом процессе с пустыми кэшами восстанавливать материальные B/D/Γ, семантические версии, маски и ID материальных экземпляров, физический лес FractalRing, кадры, механические связи, линейную и угловую скорости и возможность дальнейшего Refine. Неразрешимые зависимости и некорректный лес должны вызывать атомарный отказ без публикации неполного мира."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/verification-plan.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/vision-and-scope.md"

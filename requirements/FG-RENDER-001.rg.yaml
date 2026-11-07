@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-001
+normative: "### FG-RENDER-001 — Камера не изменяет авторитетное состояние\n\nПри фиксированном физическом времени и неизменном материальном снимке изменение положения камеры или производного уровня детализации не должно изменять M, Γ, физический лес, идентификаторы владельцев и массовые характеристики."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

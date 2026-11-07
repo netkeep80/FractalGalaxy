@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-COMP-002
+normative: "### FG-COMP-002 — Единственное владение материей\n\nКаждая непустая часть материи должна иметь одного физического владельца, определяемого по идентификатору материального экземпляра и области его маски. Составной FractalRing без собственного B/D агрегирует массу уникальных принадлежащих ему материальных экземпляров; разные экземпляры с общим immutable B или Γ не должны ошибочно отождествляться."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

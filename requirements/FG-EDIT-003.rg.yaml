@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-EDIT-003
+normative: "### FG-EDIT-003 — Холодное восстановление материального фрагмента\n\nСистема должна восстанавливать M и возможность дальнейшего уточнения самостоятельного фрагмента из сохранённых B/D/Γ и семантических версий в новом процессе с пустыми кэшами, без воспроизведения истории воздействий. Полное сохранение физического мира регламентируется FG-SAVE-001."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

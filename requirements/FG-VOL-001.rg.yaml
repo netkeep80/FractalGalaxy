@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-VOL-001
+normative: "### FG-VOL-001 — Полное восьмичастное разбиение объёма\n\nПри уточнении кубической области система должна определять восемь адресуемых подкубов, полностью покрывающих исходный объём и не пересекающихся внутренними областями. Точки общих границ должны назначаться по каноническому правилу E0."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

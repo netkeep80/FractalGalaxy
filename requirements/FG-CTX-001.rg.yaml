@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-CTX-001
+normative: "### FG-CTX-001 — Замкнутость генеративного контекста\n\nДля автономного фрагмента система должна предоставлять замкнутый неизменяемый генеративный контекст Γ с исходным корнем, ветвями, версией и всеми нужными параметрами исходных соседей, в том числе за пределами маски вещества фрагмента. Γ должен оставаться доступен после удаления физических родителей и очистки кэшей."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"

@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-SAVE-002
+normative: "### FG-SAVE-002 — Версионирование интерпретации снимка\n\nПри загрузке система должна применять сохранённые поддерживаемые версии генерации B, правил изменения D, описания Γ и материальных масок, а при неподдерживаемом сочетании версий завершаться атомарным отказом без молчаливой переинтерпретации."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/architecture.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/requirements-rationale.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/verification-plan.md"
