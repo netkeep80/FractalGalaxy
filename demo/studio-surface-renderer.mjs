@@ -25,24 +25,27 @@ function signedArea(points){
 function edgeSide(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 const clipScratchA=new Float64Array(16);
 const clipScratchB=new Float64Array(16);
-function separatedOnAxis(a,b,nx,ny){
-  if(Math.abs(nx)+Math.abs(ny)<1e-15)return false;
-  let amin=Infinity,amax=-Infinity,bmin=Infinity,bmax=-Infinity;
-  for(let i=0;i<3;i++){
-    const av=a[i].x*nx+a[i].y*ny,bv=b[i].x*nx+b[i].y*ny;
-    if(av<amin)amin=av;if(av>amax)amax=av;
-    if(bv<bmin)bmin=bv;if(bv>bmax)bmax=bv;
+function edgeLines(points,out=null){
+  const lines=out??new Float64Array(9);
+  const orientation=signedArea(points)>=0?1:-1;
+  for(let edge=0;edge<3;edge++){
+    const a=points[edge],b=points[(edge+1)%3];
+    const ex=b.x-a.x,ey=b.y-a.y;
+    lines[edge*3]=-orientation*ey;
+    lines[edge*3+1]=orientation*ex;
+    lines[edge*3+2]=orientation*(ey*a.x-ex*a.y);
   }
-  return amax<bmin-1e-9||bmax<amin-1e-9;
+  return lines;
+}
+function allOutside(lines,points,edge){
+  const a=lines[edge*3],b=lines[edge*3+1],c=lines[edge*3+2];
+  return a*points[0].x+b*points[0].y+c<-1e-9
+    &&a*points[1].x+b*points[1].y+c<-1e-9
+    &&a*points[2].x+b*points[2].y+c<-1e-9;
 }
 function trianglesMayOverlapArea(a,b){
-  for(let set=0;set<2;set++){
-    const points=set===0?a:b;
-    for(let i=0;i<3;i++){
-      const p=points[i],q=points[(i+1)%3];
-      if(separatedOnAxis(a,b,-(q.y-p.y),q.x-p.x))return false;
-    }
-  }
+  for(let edge=0;edge<3;edge++)if(allOutside(a.edgeLines,b.points,edge))return false;
+  for(let edge=0;edge<3;edge++)if(allOutside(b.edgeLines,a.points,edge))return false;
   return true;
 }
 function depthPlane(points,out=null){
@@ -66,7 +69,7 @@ function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
   if(!a.depthPlane||!b.depthPlane)return 0;
-  if(!trianglesMayOverlapArea(a.points,b.points)){
+  if(!trianglesMayOverlapArea(a,b)){
     if(counters)counters.satRejected++;
     return 0;
   }
@@ -77,30 +80,31 @@ function projectedDepthRelation(a,b,counters=null){
     input[i*2]=a.points[i].x;
     input[i*2+1]=a.points[i].y;
   }
-  const orientation=signedArea(b.points)>=0?1:-1;
   for(let edge=0;edge<3&&count;edge++){
-    const ca=b.points[edge],cb=b.points[(edge+1)%3];
-    const edgeX=cb.x-ca.x,edgeY=cb.y-ca.y;
+    const ea=b.edgeLines[edge*3],eb=b.edgeLines[edge*3+1],ec=b.edgeLines[edge*3+2];
     let outCount=0;
     let previousX=input[(count-1)*2],previousY=input[(count-1)*2+1];
-    let previousInside=orientation*(edgeX*(previousY-ca.y)-edgeY*(previousX-ca.x))>=-1e-9;
+    let previousValue=ea*previousX+eb*previousY+ec;
+    let previousInside=previousValue>=-1e-9;
     for(let i=0;i<count;i++){
       const currentX=input[i*2],currentY=input[i*2+1];
-      const currentInside=orientation*(edgeX*(currentY-ca.y)-edgeY*(currentX-ca.x))>=-1e-9;
+      const currentValue=ea*currentX+eb*currentY+ec;
+      const currentInside=currentValue>=-1e-9;
       if(currentInside!==previousInside){
-        const abx=currentX-previousX,aby=currentY-previousY;
-        const denominator=abx*edgeY-aby*edgeX;
+        const denominator=previousValue-currentValue;
         let ix=currentX,iy=currentY;
-        if(Math.abs(denominator)>=1e-12){
-          const t=((ca.x-previousX)*edgeY-(ca.y-previousY)*edgeX)/denominator;
-          ix=previousX+t*abx;iy=previousY+t*aby;
+        if(Math.abs(denominator)>=1e-18){
+          const t=previousValue/denominator;
+          ix=previousX+t*(currentX-previousX);
+          iy=previousY+t*(currentY-previousY);
         }
         output[outCount*2]=ix;output[outCount*2+1]=iy;outCount++;
       }
       if(currentInside){
         output[outCount*2]=currentX;output[outCount*2+1]=currentY;outCount++;
       }
-      previousX=currentX;previousY=currentY;previousInside=currentInside;
+      previousX=currentX;previousY=currentY;
+      previousValue=currentValue;previousInside=currentInside;
     }
     count=outCount;
     const swap=input;input=output;output=swap;
@@ -425,6 +429,7 @@ function createPreparedFrame(mesh){
       depth:0,
       depthPlane:null,
       depthPlaneStorage:{x:0,y:0,depth:0,dx:0,dy:0},
+      edgeLines:new Float64Array(9),
       light:style?.light??0,
       fill:style?.fill??null
     };
@@ -468,6 +473,7 @@ export function prepareProofTriangles(mesh,project,{
       bounds.minY=Math.min(p0.y,p1.y,p2.y);bounds.maxY=Math.max(p0.y,p1.y,p2.y);
       record.depth=(p0.depth+p1.depth+p2.depth)/3;
       record.depthPlane=depthPlane(record.points,record.depthPlaneStorage);
+      edgeLines(record.points,record.edgeLines);
       let style=styles[index];
       if(!style){
         const spatial=triangle.indices.map(i=>spatialVertices[i]);
@@ -505,6 +511,7 @@ export function prepareProofTriangles(mesh,project,{
         },
         depth:(points[0].depth+points[1].depth+points[2].depth)/3,
         depthPlane:depthPlane(points),
+        edgeLines:edgeLines(points),
         light:style.light,
         fill:style.fill
       };
