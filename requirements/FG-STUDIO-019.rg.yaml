@@ -1,0 +1,32 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-019
+normative: "### FG-STUDIO-019 — Проверяемые статусы локального mesh\n\nStudio должен отдельно показывать количество доказанных mesh triangles и канонических вершин, доказанные patches и unresolved patches. Неразрешённые регионы должны отображаться отличимыми от доказанной поверхности контурами с однозначной RU/EN легендой; отсутствие proof нельзя показывать как сплошную заполненную поверхность."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-018
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s2-surface-rendering.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-surface-renderer.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-surface-renderer.test.mjs"

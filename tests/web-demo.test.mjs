@@ -43,6 +43,8 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(app, /octreeBoundsForPath/);
   assert.match(app, /extractMaterialInterface/);
   assert.match(app, /drawExtractedSurface/);
+  assert.match(app, /assembleProvenSurfaceMesh/);
+  assert.match(app, /paintProvenSurface/);
   assert.match(app, /buildSurfacePatchGeometry/);
   assert.match(app, /triangulateSurfacePatchGeometry/);
   assert.match(app, /makeFractalVertexDeformation/);
@@ -60,6 +62,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(workflow, /studio-hierarchy\.mjs/);
   assert.match(workflow, /studio-tree\.mjs/);
   assert.match(workflow, /studio-vertex-editor\.mjs/);
+  assert.match(workflow, /studio-surface-renderer\.mjs/);
   assert.match(app, /splitGeometryFractalRing/);
   assert.match(app,/createStudioHierarchyUI/);
   assert.match(app, /renderGeometryLab/);
@@ -88,6 +91,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
     assert.equal(typeof module.buildSurfacePatchGeometry, 'function');
     assert.equal(typeof module.assertSharedEdgeGeometry, 'function');
     assert.equal(typeof module.triangulateSurfacePatchGeometry, 'function');
+    assert.equal(typeof module.assembleProvenSurfaceMesh, 'function');
     assert.equal(typeof module.makeFractalVertexDeformation, 'function');
     assert.equal(typeof module.setFractalRingVertexOffset, 'function');
     assert.equal(typeof module.evaluateGeometryInfluence, 'function');

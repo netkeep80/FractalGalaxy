@@ -159,6 +159,87 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
 });
 
 
+test('S2 rendering regressions: fresh mode roundtrip and curved local depth ordering', {timeout:30000}, async t => {
+  const binary=chromeBinary();
+  if(!binary){
+    if(process.env.CI)throw new Error('Chromium required in CI');
+    t.skip('Chromium not installed');return;
+  }
+  const temp=await mkdtemp(join(tmpdir(),'fg-s2-rendering-'));
+  let server,chrome;
+  try{
+    const web=await startServer();server=web.server;
+    chrome=await startChrome(binary,temp);
+    const cdp=connectCdp(chrome.socket);
+    await cdp.send('Page.enable');await cdp.send('Runtime.enable');
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:1600,height:900,deviceScaleFactor:1,mobile:false});
+    await cdp.send('Page.navigate',{url:web.url});
+    await cdp.until('Boolean(document.getElementById("studioLanguage"))',true,'workspace ready');
+    const setControl=(id,value,type='change')=>cdp.evaluate('(() => {const el=document.getElementById('+JSON.stringify(id)+');el.value='+JSON.stringify(String(value))+';el.dispatchEvent(new Event('+JSON.stringify(type)+',{bubbles:true}));})()');
+    await setControl('probeDepth','0','input');
+    await setControl('interfaceSource','manual');
+    await setControl('mediumA','ROCK');await setControl('mediumB','EMPTY');
+    await setControl('faceAxis','z');await setControl('faceSide','1');
+    await setControl('deformBlend','0','input');await setControl('rndAmplitude','0','input');
+    await setControl('smoothingWeight','0','input');await setControl('influenceMagnitude','0','input');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+    const before=await cdp.evaluate('document.getElementById("referenceView").toDataURL()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
+    await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+    assert.equal(await cdp.evaluate('document.getElementById("referenceView").toDataURL()'),before,
+      'first Surface→Diagnostics→Surface roundtrip on a fresh Canvas context must be pixel-identical');
+
+    await setControl('deformBlend','1','input');
+    await setControl('smoothingWeight','.2','input');
+    await cdp.evaluate('document.querySelector("[data-view=deformed]").click()');
+    const point=await cdp.evaluate('(async()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);const r=c.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()');
+    await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x-174,y:point.y-151,button:'left',buttons:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x-174,y:point.y-151,button:'left',clickCount:1});
+    await cdp.send('Input.dispatchMouseEvent',{type:'mouseWheel',x:point.x-174,y:point.y-151,deltaX:0,deltaY:-Math.log(10/7)*1000});
+    const pixel=await cdp.evaluate('[...document.getElementById("deformedView").getContext("2d").getImageData(194,335,1,1).data]');
+    assert.deepEqual(pixel,[29,144,109,255],
+      'nearest curved local triangle must supply the opaque overlap pixel');
+
+    await cdp.evaluate('document.getElementById("resetCamera").click()');
+    await cdp.evaluate(`(() => {
+      window.__fgGapPaths=[];
+      if(window.__fgGapCaptureInstalled)return;
+      window.__fgGapCaptureInstalled=true;
+      const proto=CanvasRenderingContext2D.prototype;
+      const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,stroke=proto.stroke;
+      proto.beginPath=function(){this.__fgAuditPath=[];return begin.call(this);};
+      proto.moveTo=function(x,y){this.__fgAuditPath?.push([x,y]);return move.call(this,x,y);};
+      proto.lineTo=function(x,y){this.__fgAuditPath?.push([x,y]);return line.call(this,x,y);};
+      proto.stroke=function(){
+        if(String(this.strokeStyle).toLowerCase()==='#f3b35c'){
+          window.__fgGapPaths.push({canvas:this.canvas.id,points:[...(this.__fgAuditPath??[])]});
+        }
+        return stroke.call(this);
+      };
+    })()`);
+    await setControl('mediumA','MIXED');
+    const gapEvidence=await cdp.evaluate(`(() => {
+      const paths=(window.__fgGapPaths??[]).filter(item=>item.canvas==='deformedView');
+      const path=paths.find(item=>item.points.length===8);
+      const yaw=-.66,pitch=.46,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+      const x=0,y=-Math.SQRT1_2,z=Math.SQRT1_2;
+      const x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y*cp-z1*sp;
+      const scale=420*.30;
+      const expected=[300+x1*scale,210-y1*scale];
+      const distance=path?Math.min(...path.points.map(p=>Math.hypot(p[0]-expected[0],p[1]-expected[1]))):Infinity;
+      return {count:path?.points.length??0,distance};
+    })()`);
+    assert.equal(gapEvidence.count,8,'depth-1 unresolved Canvas outline must include canonical edge midpoints');
+    assert.ok(gapEvidence.distance<1e-7,'unresolved Canvas path must pass through the canonical deformed midpoint');
+    assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions under S2 rendering regressions');
+  }finally{
+    chrome?.socket.close();chrome?.child.kill('SIGKILL');
+    if(server)await new Promise(resolve=>server.close(resolve));
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
+  }
+});
+
 test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limits and persistent language', {timeout:45000}, async t => {
   const binary = chromeBinary();
   if (!binary) {
@@ -278,6 +359,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('surface proof and unresolved rendering have distinct visual effects, and only proven patches triangulate', async () => {
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
       const hash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
       const setTriangles = checked => cdp.evaluate('(() => {const e=document.getElementById("showTriangulation");e.checked='+checked+';e.dispatchEvent(new Event("change",{bubbles:true}));})()');
       await setControl('interfaceSource','manual');
@@ -297,6 +379,62 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await hash(),unresolvedWithTriangles,'unresolved patch must not be triangulated');
       assert.notEqual(unresolvedWithTriangles,proven,'unresolved and proven must look different');
       await setTriangles(true);
+      await setControl('interfaceSource','procedural');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+    });
+
+    await t.test('S2 browser proof: local filled mesh, diagnostic mode and explicit uncertainty',async()=>{
+      // The preceding test may have persisted English; this scenario tests RU first.
+      await setControl('studioLanguage','ru');
+      await setControl('probeDepth','0','input');
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','ROCK');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+      const get=expression=>cdp.evaluate(expression);
+      const png=()=>get('document.getElementById("referenceView").toDataURL()');
+      const initial=await png();
+      const original=await inspect();
+      const ringCount=await get('document.getElementById("studioRingCount").textContent');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'0');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'0');
+      assert.match(await get('document.getElementById("studioSurfaceStatus").textContent'),/нет/i);
+
+      await setControl('mediumB','EMPTY');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'8');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'9');
+      assert.equal(await get('document.getElementById("presentPatches").textContent'),'1');
+      assert.equal(await get('document.getElementById("unresolvedPatches").textContent'),'0');
+      const painted=await png();
+      assert.notEqual(painted,initial,'filled proven surface must change the actual canvas pixels');
+      const surfaceStatus=await get('document.getElementById("studioSurfaceStatus").textContent');
+      assert.match(surfaceStatus,/доказан/);
+
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
+      assert.equal(await get('document.querySelector("button[data-surface-mode=debug]").getAttribute("aria-pressed")'),'true');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'8');
+      assert.notEqual(await png(),painted,'debug patch overlay must differ from filled view');
+      assert.equal((await inspect()).path,original.path);
+      assert.equal(await get('document.getElementById("studioRingCount").textContent'),ringCount);
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
+      assert.equal(await png(),painted,'switching display mode must recover bit-identical proven surface pixels');
+
+      await setControl('mediumA','MIXED');
+      assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'0');
+      assert.equal(await get('document.getElementById("studioMeshVertices").textContent'),'0');
+      assert.equal(await get('document.getElementById("unresolvedPatches").textContent'),'1');
+      assert.match(await get('document.getElementById("studioSurfaceStatus").textContent'),/уточнен/i);
+      assert.notEqual(await png(),painted,'proof gap should be visibly distinct from solid fill');
+      const unresolved=await png();
+      await setControl('studioLanguage','en');
+      assert.equal(await get('document.getElementById("studioLegendProven").textContent'),'Proven material interface');
+      assert.equal(await get('document.getElementById("studioLegendUnresolved").textContent'),'Unresolved proof region');
+      assert.equal(await get('document.querySelector("button[data-surface-mode=surface]").textContent'),'Surface');
+      assert.equal(await png(),unresolved,'translation must not alter geometry pixels');
+      await setControl('studioLanguage','ru');
+      assert.equal(await png(),unresolved);
+      assert.equal((await inspect()).mass,original.mass);
+      assert.equal(await get('document.getElementById("studioRingCount").textContent'),ringCount);
       await setControl('interfaceSource','procedural');
     });
 
@@ -411,6 +549,10 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     await t.test('real 3D vertex drag: threshold gating, impact tree, FractalRing split and pixel-exact geometry preservation',async()=>{
       await cdp.evaluate('document.getElementById("resetCamera").click()');
       await setControl('probeDepth','0','input');
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','EMPTY');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
       await setControl('faceAxis','z');
       await setControl('faceSide','1');
       await setControl('deformBlend','0','input');
@@ -423,12 +565,49 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelector(".studio-views").dataset.mode'),'deformed');
       const point=await cdp.evaluate('(async()=>{const {referenceProjection}=await import("/studio-picking.mjs");const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});await new Promise(requestAnimationFrame);const r=c.getBoundingClientRect();const p=referenceProjection([0,0,1],{width:c.width,height:c.height,camera:{yaw:-.66,pitch:.46,zoom:1}});const x=r.left+p.x*r.width/c.width,y=r.top+p.y*r.height/c.height;return {x,y,over:document.elementFromPoint(x,y)===c};})()');
       assert.equal(point.over,true,'target must be on the visible actual deformed canvas');
+      await cdp.evaluate(`(() => {
+        window.__fgSurfaceFillPaths=[];
+        if(window.__fgSurfaceFillCaptureInstalled)return;
+        window.__fgSurfaceFillCaptureInstalled=true;
+        const proto=CanvasRenderingContext2D.prototype;
+        const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,fill=proto.fill;
+        proto.beginPath=function(){this.__fgSurfaceFillPath=[];return begin.call(this);};
+        proto.moveTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return move.call(this,x,y);};
+        proto.lineTo=function(x,y){this.__fgSurfaceFillPath?.push([x,y]);return line.call(this,x,y);};
+        proto.fill=function(...args){
+          if(this.canvas?.id==='deformedView'&&this.__fgSurfaceFillPath?.length===3){
+            window.__fgSurfaceFillPaths.push(this.__fgSurfaceFillPath.map(point=>[...point]));
+          }
+          return fill.apply(this,args);
+        };
+      })()`);
+      const captureFilledSurface=()=>cdp.evaluate(`(() => {
+        const count=Number(document.getElementById('studioMeshTriangles').textContent);
+        const paths=(window.__fgSurfaceFillPaths??[]).slice(-count)
+          .map(path=>path.map(([x,y])=>[Number(x.toFixed(9)),Number(y.toFixed(9))]));
+        const frequencies=new Map();
+        for(const path of paths)for(const point of path){
+          const key=point.join(',');
+          const entry=frequencies.get(key)??{point,count:0};
+          entry.count++;frequencies.set(key,entry);
+        }
+        const center=[...frequencies.values()].sort((a,b)=>b.count-a.count)[0]?.point??null;
+        return {paths,center};
+      })()`);
+      // Force one clean post-hook frame. The oracle records only the actual
+      // proven triangle fill paths, excluding axes, handles and frame strokes.
+      await cdp.evaluate('document.getElementById("resetCamera").click()');
+      const filledBeforeDrag=await captureFilledSurface();
+      assert.equal(filledBeforeDrag.paths.length,8,'baseline fill-only capture must contain exactly 8 proven triangles');
+      assert.ok(filledBeforeDrag.center,'baseline canonical center must be present in the filled mesh');
       const moveDrag=async(dx,dy)=>{
         await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});
         await cdp.send('Input.dispatchMouseEvent',{type:'mouseMoved',x:point.x+dx,y:point.y+dy,button:'left',buttons:1});
         await cdp.send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x+dx,y:point.y+dy,button:'left',clickCount:1});
       };
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0');
+      assert.equal(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent'),'8');
+      const meshBeforeDrag=await cdp.evaluate('document.getElementById("deformedView").toDataURL()');
       await moveDrag(2,0);
       assert.equal(await cdp.evaluate('document.getElementById("studioVertexKey").textContent'),'0,0,1');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','subthreshold gesture must not materialize');
@@ -442,6 +621,17 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'0','cancelled gesture must not create a ring');
       assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),beforeCancel,'cancelled gesture must restore preview');
       await moveDrag(70,-18);
+      assert.notEqual(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),meshBeforeDrag,
+        'dragged canonical center must change filled surface pixels');
+      const filledAfterPersist=await captureFilledSurface();
+      assert.equal(filledAfterPersist.paths.length,8,'persisted fill-only capture must contain exactly 8 proven triangles');
+      assert.notDeepEqual(filledAfterPersist.paths,filledBeforeDrag.paths,
+        'post-release proven triangle fill must retain the persisted WorldStore displacement');
+      assert.ok(Math.hypot(
+        filledAfterPersist.center[0]-filledBeforeDrag.center[0],
+        filledAfterPersist.center[1]-filledBeforeDrag.center[1]
+      )>1,'persisted canonical center must move in the final fill, not only in preview/handle pixels');
+      assert.equal(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent'),'8');
       assert.equal(await cdp.evaluate('document.getElementById("studioRingCount").textContent'),'1','active gesture must create FractalRing');
       assert.equal(await cdp.evaluate('document.querySelector("#studioSplitRing").disabled'),false);
       assert.equal(await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").getAttribute("aria-selected")'),'true');
@@ -453,6 +643,8 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length'),9);
       assert.equal(await cdp.evaluate('document.getElementById("deformedView").toDataURL()'),deformedBeforeSplit,
         'split must not move canonical deformed vertex on screen');
+      assert.deepEqual((await captureFilledSurface()).paths,filledAfterPersist.paths,
+        'Split must preserve the final proven triangle fill geometry, not only the composite canvas');
       await cdp.evaluate('document.getElementById("studioHierarchyTab_impact").click()');
       assert.ok(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [data-tree-kind=ring]").length')>=2);
       await cdp.evaluate('document.getElementById("studioHierarchyTab_source").click()');
@@ -462,6 +654,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Split ring');
       await setControl('studioLanguage','ru');
       assert.equal(await cdp.evaluate('document.getElementById("studioSplitRing").textContent'),'Разделить кольцо');
+      await setControl('interfaceSource','procedural');
     });
 
     assert.deepEqual(cdp.exceptions,[], 'no JavaScript exceptions under acceptance scenarios');
