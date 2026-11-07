@@ -17,4 +17,4 @@ relations:
   - predicates: [documents]
     target:
       kind: artifact
-      path: "docs/web-demo.md"
+      path: "docs/prototype.md"
