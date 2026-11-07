@@ -7,7 +7,14 @@ import {
   makeMaterial,
   queryMaterial,
   splitMaterial,
-  integrateMass
+  integrateMass,
+  homogeneousVolume,
+  mixedVolume,
+  classifyMaterialInterface,
+  incidentOctantsForFace,
+  makeReferenceFacePatch,
+  subdivideReferenceFacePatch,
+  cubeToSphereDeformation
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -21,6 +28,14 @@ const controls = {
   fixture: $('fixture'),
   editD: $('editD'),
   mode: $('mode')
+};
+
+const lab = {
+  axis: $('faceAxis'),
+  side: $('faceSide'),
+  mediumA: $('mediumA'),
+  mediumB: $('mediumB'),
+  deformBlend: $('deformBlend')
 };
 
 $('version').textContent = E0_VERSION;
@@ -89,7 +104,7 @@ function materialColor(value) {
   return [18, 26, 34];
 }
 
-function render() {
+function renderMaterialView() {
   let model;
   try {
     model = buildModel();
@@ -217,9 +232,9 @@ canvas.addEventListener('click', event => {
 });
 
 for (const input of Object.values(controls)) {
-  input.addEventListener(input.type === 'range' ? 'input' : 'change', render);
+  input.addEventListener(input.type === 'range' ? 'input' : 'change', renderMaterialView);
 }
-controls.seed.addEventListener('change', render);
+controls.seed.addEventListener('change', renderMaterialView);
 
 $('reset').addEventListener('click', () => {
   controls.seed.value = '0x12345678';
@@ -228,7 +243,225 @@ $('reset').addEventListener('click', () => {
   controls.fixture.value = 'height';
   controls.editD.checked = false;
   controls.mode.value = 'matter';
-  render();
+  renderMaterialView();
 });
 
-render();
+// ---- E1 Surface / Geometry Lab ------------------------------------------------
+
+const referenceCanvas = $('referenceView');
+const deformedCanvas = $('deformedView');
+const camera = { yaw: -0.66, pitch: 0.46, zoom: 1 };
+let drag = null;
+
+function classificationFor(value) {
+  return value === 'MIXED' ? mixedVolume() : homogeneousVolume(value);
+}
+
+function facePoint(axis, side, u, v) {
+  if (axis === 'x') return [side, u, v];
+  if (axis === 'y') return [u, side, v];
+  return [u, v, side];
+}
+
+function octantForPoint([x, y, z]) {
+  return (x >= 0 ? 1 : 0) + (y >= 0 ? 2 : 0) + (z >= 0 ? 4 : 0);
+}
+
+function blendedDeformation(point) {
+  const blend = Number(lab.deformBlend.value);
+  const sphere = cubeToSphereDeformation(point);
+  return point.map((value, i) => value + (sphere[i] - value) * blend);
+}
+
+function rotateProject(point, canvasElement) {
+  const [x, y, z] = point;
+  const cy = Math.cos(camera.yaw), sy = Math.sin(camera.yaw);
+  const cp = Math.cos(camera.pitch), sp = Math.sin(camera.pitch);
+
+  const x1 = x * cy + z * sy;
+  const z1 = -x * sy + z * cy;
+  const y1 = y * cp - z1 * sp;
+  const depth = y * sp + z1 * cp;
+
+  const scale = Math.min(canvasElement.width, canvasElement.height) * 0.30 * camera.zoom;
+  return {
+    x: canvasElement.width / 2 + x1 * scale,
+    y: canvasElement.height / 2 - y1 * scale,
+    depth
+  };
+}
+
+function mapGeometry(point, deformed) {
+  return deformed ? blendedDeformation(point) : point;
+}
+
+function drawLine(context, canvasElement, a, b, { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1 } = {}) {
+  const pa = rotateProject(mapGeometry(a, deformed), canvasElement);
+  const pb = rotateProject(mapGeometry(b, deformed), canvasElement);
+  context.strokeStyle = stroke;
+  context.lineWidth = width;
+  context.beginPath();
+  context.moveTo(pa.x, pa.y);
+  context.lineTo(pb.x, pb.y);
+  context.stroke();
+}
+
+function drawCubeGrid(context, canvasElement, deformed) {
+  const steps = 4;
+  for (const axis of ['x', 'y', 'z']) {
+    for (const side of [-1, 1]) {
+      for (let i = 0; i <= steps; i++) {
+        const t = -1 + 2 * i / steps;
+        drawLine(context, canvasElement, facePoint(axis, side, -1, t), facePoint(axis, side, 1, t), { deformed });
+        drawLine(context, canvasElement, facePoint(axis, side, t, -1), facePoint(axis, side, t, 1), { deformed });
+      }
+    }
+  }
+}
+
+function drawSelectedFace(context, canvasElement, deformed) {
+  const axis = lab.axis.value;
+  const side = Number(lab.side.value);
+  const stroke = 'rgba(102, 235, 190, .95)';
+
+  for (const t of [-1, 0, 1]) {
+    drawLine(context, canvasElement, facePoint(axis, side, -1, t), facePoint(axis, side, 1, t), {
+      deformed, stroke, width: t === 0 ? 2.2 : 1.7
+    });
+    drawLine(context, canvasElement, facePoint(axis, side, t, -1), facePoint(axis, side, t, 1), {
+      deformed, stroke, width: t === 0 ? 2.2 : 1.7
+    });
+  }
+
+  const incident = incidentOctantsForFace(axis, side);
+  const centers = [
+    [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]
+  ];
+
+  context.font = '700 12px ui-monospace, SFMono-Regular, Menlo, monospace';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+
+  for (const [u, v] of centers) {
+    const source = facePoint(axis, side, u, v);
+    const branch = octantForPoint(source);
+    if (!incident.includes(branch)) continue;
+    const p = rotateProject(mapGeometry(source, deformed), canvasElement);
+    context.fillStyle = 'rgba(5, 15, 22, .82)';
+    context.beginPath();
+    context.arc(p.x, p.y, 13, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#a7ffe1';
+    context.fillText(String(branch), p.x, p.y + 0.5);
+  }
+}
+
+function drawAxes(context, canvasElement, deformed) {
+  const axes = [
+    [[0,0,0], [1.25,0,0], 'X'],
+    [[0,0,0], [0,1.25,0], 'Y'],
+    [[0,0,0], [0,0,1.25], 'Z']
+  ];
+  context.font = '11px ui-monospace, SFMono-Regular, Menlo, monospace';
+  for (const [a,b,label] of axes) {
+    drawLine(context, canvasElement, a, b, { deformed: false, stroke: 'rgba(255,255,255,.24)', width: 1 });
+    const p = rotateProject(b, canvasElement);
+    context.fillStyle = '#637b90';
+    context.fillText(label, p.x + 4, p.y - 4);
+  }
+}
+
+function drawGeometry(canvasElement, deformed) {
+  const context = canvasElement.getContext('2d');
+  context.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+  const gradient = context.createRadialGradient(
+    canvasElement.width * .48, canvasElement.height * .42, 10,
+    canvasElement.width * .48, canvasElement.height * .42, canvasElement.width * .55
+  );
+  gradient.addColorStop(0, '#0b1a25');
+  gradient.addColorStop(1, '#03090f');
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvasElement.width, canvasElement.height);
+
+  drawCubeGrid(context, canvasElement, deformed);
+  drawSelectedFace(context, canvasElement, deformed);
+  drawAxes(context, canvasElement, deformed);
+}
+
+function describeInterface(result) {
+  if (result.kind === 'NONE') return `NONE · ${result.medium}`;
+  if (result.kind === 'PRESENT') return `PRESENT · ${result.leftMedium} ↔ ${result.rightMedium}`;
+  return 'REFINE · volume is MIXED';
+}
+
+function renderGeometryLab() {
+  const axis = lab.axis.value;
+  const side = Number(lab.side.value);
+  const a = classificationFor(lab.mediumA.value);
+  const b = classificationFor(lab.mediumB.value);
+  const decision = classifyMaterialInterface(a, b);
+  const incidentA = incidentOctantsForFace(axis, side);
+  const incidentB = incidentOctantsForFace(axis, -side);
+  const patches = subdivideReferenceFacePatch(makeReferenceFacePatch());
+
+  $('incidentA').textContent = '[' + incidentA.join(', ') + ']';
+  $('incidentB').textContent = '[' + incidentB.join(', ') + ']';
+  $('surfacePatches').textContent = String(patches.length);
+  $('interfaceDecision').textContent = describeInterface(decision);
+  $('deformOut').value = Math.round(Number(lab.deformBlend.value) * 100) + '%';
+
+  const badge = $('interfaceBadge');
+  badge.textContent = decision.kind;
+  badge.className = 'interface-badge ' + decision.kind.toLowerCase();
+
+  drawGeometry(referenceCanvas, false);
+  drawGeometry(deformedCanvas, true);
+}
+
+for (const input of Object.values(lab)) {
+  input.addEventListener(input.type === 'range' ? 'input' : 'change', renderGeometryLab);
+}
+
+function attachCameraControls(canvasElement) {
+  canvasElement.addEventListener('pointerdown', event => {
+    canvasElement.setPointerCapture(event.pointerId);
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+  });
+
+  canvasElement.addEventListener('pointermove', event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    camera.yaw += dx * 0.01;
+    camera.pitch = Math.max(-1.35, Math.min(1.35, camera.pitch + dy * 0.01));
+    renderGeometryLab();
+  });
+
+  const end = event => {
+    if (drag?.id === event.pointerId) drag = null;
+  };
+  canvasElement.addEventListener('pointerup', end);
+  canvasElement.addEventListener('pointercancel', end);
+
+  canvasElement.addEventListener('wheel', event => {
+    event.preventDefault();
+    camera.zoom = Math.max(0.55, Math.min(2.2, camera.zoom * Math.exp(-event.deltaY * 0.001)));
+    renderGeometryLab();
+  }, { passive: false });
+}
+
+attachCameraControls(referenceCanvas);
+attachCameraControls(deformedCanvas);
+
+$('resetCamera').addEventListener('click', () => {
+  camera.yaw = -0.66;
+  camera.pitch = 0.46;
+  camera.zoom = 1;
+  renderGeometryLab();
+});
+
+renderMaterialView();
+renderGeometryLab();

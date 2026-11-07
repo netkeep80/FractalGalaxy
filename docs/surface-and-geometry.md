@@ -60,3 +60,20 @@ Octree-addressing при этом не меняется.
 Texture, normal, roughness, lighting cache и прочая чисто визуальная детализация являются derived data.
 
 Если алгоритм меняет реальное положение границы вещества так, что должны измениться collision, ownership, масса или материальные запросы, это изменение должно быть выражено volume/material model, а не только renderer'ом.
+
+## 8. Surface / Geometry Lab в GitHub Pages
+
+Web Studio содержит две синхронные 3D-проекции одной topology:
+
+- reference cube — каноническое адресное пространство;
+- deformed geometry — те же reference points после `Φ`.
+
+Пользователь выбирает ось и сторону общей грани, effective media A/B и величину визуального перехода от identity к `cubeToSphereDeformation`. Studio показывает:
+
+- решение `NONE / PRESENT / REFINE`;
+- четыре incident octants стороны A;
+- четыре incident octants соседней стороны B;
+- четыре quadtree subpatches выбранной грани;
+- одинаковую camera orientation/zoom для reference и deformed views.
+
+Эта панель является экспериментальным представлением модели, а не отдельной реализацией surface semantics: решения интерфейса и octant selection вызывают функции `src/surface/interface.mjs`, а deformation — `src/geometry/deformation.mjs`.

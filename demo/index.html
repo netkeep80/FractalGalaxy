@@ -4,19 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Интерактивное E0-демо FractalGalaxy: B/D/Γ, M=Resolve(B,D), octree и Split.">
-  <title>FractalGalaxy — E0 demo</title>
+  <meta name="description" content="FractalGalaxy Experiment Studio: B/D/Γ, sparse FractalRing, границы сред и деформированная геометрия.">
+  <title>FractalGalaxy — Experiment Studio</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <header class="hero">
     <div>
-      <div class="eyebrow">FractalGalaxy · E0 browser demo</div>
-      <h1>Фрактальная материя как исполняемое поле</h1>
+      <div class="eyebrow">FractalGalaxy · Experiment Studio</div>
+      <h1>Фрактальная материя как исполняемый мир</h1>
       <p class="lede">
-        Эта страница запускает тот же <code>src/fractal-matter.mjs</code>, что и тесты проекта:
-        процедурное <strong>B</strong>, изменения <strong>D</strong>, контекст <strong>Γ</strong>,
-        <strong>M = Resolve(B,D)</strong> и композиционный <strong>Split</strong>.
+        Страница использует тот же <code>src/fractal-matter.mjs</code>, что и тесты проекта.
+        Верхняя лаборатория исследует <strong>M = Resolve(B,D)</strong> и ownership,
+        нижняя — связь <strong>reference topology → volume classification → material interface → deformed geometry</strong>.
       </p>
     </div>
     <a class="repo-link" href="https://github.com/netkeep80/FractalGalaxy">GitHub ↗</a>
@@ -24,7 +24,7 @@
 
   <main class="layout">
     <section class="panel controls">
-      <h2>Параметры</h2>
+      <h2>Материальное поле</h2>
 
       <label>
         <span>Root seed</span>
@@ -63,7 +63,6 @@
       </label>
 
       <div class="legend" id="legend"></div>
-
       <button id="reset" type="button">Сбросить параметры</button>
     </section>
 
@@ -103,14 +102,112 @@
 
       <p class="note">
         Split выполняется дважды: сначала по <code>x=0</code>, затем правая часть по <code>y=0</code>.
-        Вторая операция пересекает новую полуплоскость с уже существующей ownership-mask.
       </p>
     </section>
   </main>
 
+  <section class="lab-shell">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow">E1 · Surface / Geometry Lab</div>
+        <h2>Куб — адресная топология, поверхность — граница сред</h2>
+        <p>
+          Выберите топологическую грань и среды по обе стороны. Если одна сторона <code>MIXED</code>,
+          интерфейс нельзя решить без дальнейшей объёмной фрактализации.
+        </p>
+      </div>
+      <div id="interfaceBadge" class="interface-badge">—</div>
+    </div>
+
+    <div class="lab-grid">
+      <section class="panel lab-controls">
+        <h3>Интерфейс</h3>
+
+        <label>
+          <span>Ось грани</span>
+          <select id="faceAxis">
+            <option value="x">X</option>
+            <option value="y">Y</option>
+            <option value="z">Z</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Сторона ячейки A</span>
+          <select id="faceSide">
+            <option value="1">+</option>
+            <option value="-1">−</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Среда A</span>
+          <select id="mediumA">
+            <option value="ROCK">ROCK</option>
+            <option value="EMPTY">EMPTY</option>
+            <option value="ICE">ICE</option>
+            <option value="MIXED">MIXED</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Среда B</span>
+          <select id="mediumB">
+            <option value="EMPTY">EMPTY</option>
+            <option value="ROCK">ROCK</option>
+            <option value="ICE">ICE</option>
+            <option value="MIXED">MIXED</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Искривление Φ <output id="deformOut">100%</output></span>
+          <input id="deformBlend" type="range" min="0" max="1" value="1" step="0.01">
+        </label>
+
+        <div class="lab-readout">
+          <div><span>A incident octants</span><strong id="incidentA">—</strong></div>
+          <div><span>B incident octants</span><strong id="incidentB">—</strong></div>
+          <div><span>Surface patches</span><strong id="surfacePatches">4</strong></div>
+          <div><span>Decision</span><strong id="interfaceDecision">—</strong></div>
+        </div>
+
+        <p class="note">
+          Перетаскивайте мышью любую 3D-проекцию для вращения. Колесо меняет масштаб.
+          Обе проекции используют одну камеру.
+        </p>
+        <button id="resetCamera" type="button">Сбросить камеру</button>
+      </section>
+
+      <section class="panel geometry-view">
+        <div class="view-label">
+          <strong>Reference topology</strong>
+          <span>идеальный куб, octree/quadtree адресация</span>
+        </div>
+        <canvas id="referenceView" width="600" height="420" aria-label="Reference cube topology"></canvas>
+      </section>
+
+      <section class="panel geometry-view">
+        <div class="view-label">
+          <strong>Deformed geometry</strong>
+          <span>тот же topology после Φ (cube → sphere example)</span>
+        </div>
+        <canvas id="deformedView" width="600" height="420" aria-label="Deformed cube geometry"></canvas>
+      </section>
+    </div>
+
+    <div class="explain-strip">
+      <div><strong>1</strong><span>Octree задаёт адрес и соседство.</span></div>
+      <div><strong>2</strong><span>Volume model классифицирует среду.</span></div>
+      <div><strong>3</strong><span>Различие сред создаёт interface.</span></div>
+      <div><strong>4</strong><span>Surface quadtree уточняет только interface.</span></div>
+      <div><strong>5</strong><span>Φ искривляет геометрию, не меняя topology.</span></div>
+    </div>
+  </section>
+
   <footer>
-    <span>CPU E0 prototype · без WebGPU и production physics</span>
-    <a href="https://github.com/netkeep80/FractalGalaxy/blob/main/docs/prototype.md">Ограничения прототипа ↗</a>
+    <span>E0 material prototype + E1 surface/geometry laboratory</span>
+    <a href="https://github.com/netkeep80/FractalGalaxy/blob/main/docs/surface-and-geometry.md">Архитектура поверхности ↗</a>
   </footer>
 
   <script type="module" src="./app.js"></script>
