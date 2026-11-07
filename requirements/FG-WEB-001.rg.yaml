@@ -1,0 +1,32 @@
+format: repo-guard/requirement-v1
+id: FG-WEB-001
+normative: "### FG-WEB-001 — Интерактивное веб-демо\n\nПроект должен иметь небольшое статическое GitHub Pages демо, запускающее тот же модуль E0-прототипа, что и локальные тесты, и позволяющее наблюдать основные идеи FractalMatter без отдельной серверной части: материальный запрос M, влияние Γ, результирующее изменение D, канонический octree-адрес и композиционное владение после Split. Демо не обязано изображать production-графику или полную физику движка."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/index.html"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/styles.css"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: ".github/workflows/pages.yml"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/web-demo.test.mjs"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "README.md"
