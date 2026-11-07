@@ -2,6 +2,9 @@ export const translations = Object.freeze({
   ru: Object.freeze({
     'studio.workspace':'Рабочее пространство Studio',
     'studio.tree.title':'Иерархии',
+    'studio.tree.impact': "Воздействия",
+    'studio.tree.verticesShort': "вершин",
+    'studio.tree.note.impact': "Пространственная иерархия сохранённых смещений. Это результат, а не история событий.",
     'studio.tree.octree':'Octree',
     'studio.tree.split':'Разделение',
     'studio.tree.physical':'Физические связи',
@@ -141,6 +144,9 @@ export const translations = Object.freeze({
   en: Object.freeze({
     'studio.workspace':'Studio workspace',
     'studio.tree.title':'Hierarchies',
+    'studio.tree.impact': "Influences",
+    'studio.tree.verticesShort': "vertices",
+    'studio.tree.note.impact': "Spatial hierarchy of saved displacement results, not an event log.",
     'studio.tree.octree':'Octree',
     'studio.tree.split':'Split',
     'studio.tree.physical':'Physical links',

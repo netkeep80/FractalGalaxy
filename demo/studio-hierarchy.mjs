@@ -58,9 +58,10 @@ export function e0SplitTreeRows(model, { expanded = new Set(['split:root','split
 }
 function stateRow(store, ring, depth, core) {
   return {key:'ring:'+ring.id,label:ring.id,ringId:ring.id,depth,kind:'ring',
-    status:core.ringRecordState(store,ring.id),hasChildren:false,selected:false};
+    status:core.ringRecordState(store,ring.id),hasChildren:false,selected:false,
+    impactedVertices:Object.keys(ring.overrides?.geometryVertexOffsets??{}).length};
 }
-export function fractalRingTreeRows(store,{relation='physical',expanded=new Set(),core}={}) {
+export function fractalRingTreeRows(store,{relation='physical',expanded=new Set(),core,impactsOnly=false}={}) {
   if (!core?.validateWorldStore || !core?.ringRecordState || !core?.ringIdsForPhysicalParent) throw new Error('WorldStore API required');
   core.validateWorldStore(store);
   if (relation!=='physical' && relation!=='source') throw new RangeError('invalid ring relation');
@@ -79,6 +80,7 @@ export function fractalRingTreeRows(store,{relation='physical',expanded=new Set(
   // Virtual source-prefix nodes are strictly grouping labels, not materialized rings.
   const groups = new Map();
   for (const ring of Object.values(store.records)) {
+    if(impactsOnly && !Object.keys(ring.overrides?.geometryVertexOffsets??{}).length)continue;
     const {rootId,algorithmId,algorithmVersion,address}=ring.source;
     const groupKey=JSON.stringify([rootId,algorithmId,algorithmVersion]);
     if(!groups.has(groupKey))groups.set(groupKey,{rootId,algorithmId,algorithmVersion,children:new Map(),rings:[]});

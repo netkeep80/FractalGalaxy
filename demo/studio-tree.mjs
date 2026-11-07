@@ -5,16 +5,17 @@ import {
 import {formatPath} from './studio-picking.mjs';
 
 // A single accessible tree controller for separate, non-interchangeable hierarchies.
-const MODES=['octree','split','physical','source'];
+const MODES=['octree','split','physical','source','impact'];
 export function createStudioHierarchyUI({
   mount,translate,getLocale,getSelectedPath,getSelectedOwner,
-  getSplitModel,getWorldStore,core,onSelectOctree,onSelectSplit
+  getSplitModel,getWorldStore,core,onSelectOctree,onSelectSplit,onSelectRing=()=>{}
 }) {
   const expanded={
     octree:new Set(),
     split:new Set(['split:root','split:right']),
     physical:new Set(),
-    source:new Set()
+    source:new Set(),
+    impact:new Set()
   };
   let mode='octree',lastSelection=null,lastLocale=null,dirty=true;
   let lastRows=[],selectedRingId=null;
@@ -40,8 +41,10 @@ export function createStudioHierarchyUI({
       maxDepth:MAX_STUDIO_TREE_DEPTH});
     if(mode==='split')return e0SplitTreeRows(getSplitModel(),{expanded:expanded.split})
       .map(row=>({...row,selected:row.owner===getSelectedOwner()}));
-    const relation=mode==='source'?'source':'physical';
-    return fractalRingTreeRows(getWorldStore(),{relation,expanded:expanded[mode],core})
+    const relation=(mode==='source'||mode==='impact')?'source':'physical';
+    return fractalRingTreeRows(getWorldStore(),{
+      relation,expanded:expanded[mode],core,impactsOnly:mode==='impact'
+    })
       .map(row=>({...row,selected:row.ringId===selectedRingId}));
   }
   function detailText(){
@@ -116,7 +119,9 @@ export function createStudioHierarchyUI({
         node.append(virtual);
       }else if(row.kind==='ring'){
         const status=document.createElement('small');
-        status.textContent=translate('studio.tree.'+row.status);
+        status.textContent=mode==='impact'
+          ? row.impactedVertices+' '+translate('studio.tree.verticesShort')
+          : translate('studio.tree.'+row.status);
         node.append(status);
       }else if(row.kind==='split-stage'){
         const caption=document.createElement('small');
@@ -149,7 +154,7 @@ export function createStudioHierarchyUI({
     if(!row)return;
     if(row.kind==='octree')onSelectOctree(row.path);
     else if(row.kind==='split-leaf')onSelectSplit(row.owner);
-    else if(row.kind==='ring'){selectedRingId=row.ringId;dirty=true;}
+    else if(row.kind==='ring'){selectedRingId=row.ringId;onSelectRing(row.ringId);dirty=true;}
     else if(row.hasChildren)toggle(key);
     dirty=true;
     render(key);
@@ -196,6 +201,19 @@ export function createStudioHierarchyUI({
     sync(){render();},
     open(modeName){if(!MODES.includes(modeName))throw new RangeError('unknown hierarchy mode');mode=modeName;dirty=true;render();},
     refresh(){dirty=true;render();},
-    mode(){return mode;}
+    mode(){return mode;},
+    onStoreChanged({source=null,ringId=null,physicalParentId=null}={}){
+      if(ringId)selectedRingId=ringId;
+      if(physicalParentId)expanded.physical.add('ring:'+physicalParentId);
+      if(source){
+        const groupId=JSON.stringify([source.rootId,source.algorithmId,source.algorithmVersion]);
+        for(let depth=0;depth<=source.address.length;depth++){
+          const key='source:'+encodeURIComponent(groupId)+':'+formatPath(source.address.slice(0,depth));
+          expanded.source.add(key);
+          expanded.impact.add(key);
+        }
+      }
+      dirty=true;render();
+    }
   };
 }

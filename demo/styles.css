@@ -467,3 +467,6 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .studio-tree-label {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .studio-tree-note {font-size:10px;color:#859db0;margin:8px 2px;line-height:1.45;}
 .studio-tree-details {font-size:10px;color:#b6d5e7;overflow-wrap:anywhere;line-height:1.45;}
+
+.studio-tree-tabs {grid-template-columns:repeat(2,minmax(0,1fr));}
+.studio-tree-node[data-tree-kind=ring][aria-selected=true]{border-color:#efb85c;background:#3a2c1a;}
