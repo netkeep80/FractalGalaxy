@@ -910,6 +910,10 @@ test('PERF camera-only regional interaction is cached, coalesced and sub-100ms',
       'regional painter broad-phase must cut candidate pairs by >=100x: '+JSON.stringify(eventResult));
     assert.ok(eventResult.lastViewMs<=100,
       'camera-only redraw must meet <=100ms target, got '+eventResult.lastViewMs+'ms');
+    t.diagnostic('PERF_COUNTERS '+JSON.stringify({
+      triangles:Number(await cdp.evaluate('document.getElementById("studioMeshTriangles").textContent')),
+      before,eventResult
+    }));
     assert.deepEqual(cdp.exceptions,[]);
   }finally{
     chrome?.socket.close();chrome?.child.kill('SIGKILL');
