@@ -379,6 +379,18 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [aria-selected=true]").dataset.treeKey'),'split:rb');
     });
 
+
+    await t.test('populated FractalRing tree shows physical and source paths without loading unloaded records', async()=>{
+      const result=await cdp.evaluate("(async()=>{\n  const {createStudioHierarchyUI}=await import('/studio-tree.mjs');\n  const core=await import('/src/fractal-matter.mjs');\n  const {translate}=await import('/studio-i18n.mjs');\n  const store=core.makeMemoryWorldStore({resident:['planet-ring'],rings:[\n    {id:'planet-ring',source:{rootId:'planet',address:[],algorithmId:'g',algorithmVersion:'v1'}},\n    {id:'fragment',physicalParentId:'planet-ring',\n      source:{rootId:'planet',address:[5,2,7,3],algorithmId:'g',algorithmVersion:'v1'}}\n  ]});\n  const mount=document.createElement('section');\n  const widget=createStudioHierarchyUI({\n    mount,translate:key=>translate('ru',key),getLocale:()=> 'ru',\n    getSelectedPath:()=>[],getSelectedOwner:()=>null,\n    getSplitModel:()=>({root:{id:'root'},left:{id:'left'},rb:{id:'rb'},rt:{id:'rt'}}),\n    getWorldStore:()=>store,core,\n    onSelectOctree:()=>{throw Error('unexpected octree selection');},\n    onSelectSplit:()=>{throw Error('unexpected split selection');}\n  });\n  widget.open('physical');\n  const physicalRoot=[...mount.querySelectorAll('[data-tree-key]')].map(el=>el.dataset.treeKey);\n  mount.querySelector('[data-tree-toggle=\"ring:planet-ring\"]').click();\n  const physicalChild=[...mount.querySelectorAll('[data-tree-key]')].find(el=>el.dataset.treeKey==='ring:fragment');\n  const unloadedLabel=physicalChild.textContent;\n  physicalChild.click();\n  const details=mount.querySelector('#studioRingDetails').textContent;\n  widget.open('source');\n  const seen=[];\n  for(const address of ['/','/5','/5/2','/5/2/7','/5/2/7/3']){\n    const item=[...mount.querySelectorAll('[data-tree-kind=\"source\"]')].find(el=>\n      el.querySelector('small')?.textContent.trim().endsWith('· '+address));\n    if(!item)throw Error('Missing virtual source address '+address);\n    seen.push(address);\n    const toggle=item.closest('.studio-tree-row').querySelector('[data-tree-toggle]');\n    if(toggle&&!toggle.disabled)toggle.click();\n  }\n  const sourceChild=[...mount.querySelectorAll('[data-tree-key]')].find(el=>el.dataset.treeKey==='ring:fragment');\n  sourceChild?.click();\n  return {physicalRoot,unloadedLabel,details,seen,sourceChild:Boolean(sourceChild),\n    after:core.worldStoreStats(store),sourceDetail:mount.querySelector('#studioRingDetails').textContent};\n})()");
+      assert.deepEqual(result.physicalRoot,['ring:planet-ring']);
+      assert.match(result.unloadedLabel,/Выгружен/);
+      assert.match(result.details,/planet\/5\/2\/7\/3/);
+      assert.deepEqual(result.seen,['/','/5','/5/2','/5/2/7','/5/2/7/3']);
+      assert.equal(result.sourceChild,true);
+      assert.match(result.sourceDetail,/fragment/);
+      assert.deepEqual(result.after,{persisted:2,resident:1,unloaded:1});
+    });
+
     await t.test('physical and procedural FractalRing viewers display honest empty state',async()=>{
       const before=await inspect();
       for(const mode of ['physical','source']){

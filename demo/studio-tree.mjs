@@ -78,6 +78,7 @@ export function createStudioHierarchyUI({
     panel.setAttribute('aria-label',translate('studio.tree.'+mode));
     lastRows=rows();
     const fragment=document.createDocumentFragment();
+    const selectedIndex=lastRows.findIndex(item=>item.selected);
     for(const row of lastRows){
       const line=document.createElement('div');
       line.className='studio-tree-row';
@@ -99,7 +100,7 @@ export function createStudioHierarchyUI({
       node.setAttribute('aria-level',String(row.depth+1));
       node.setAttribute('aria-selected',String(Boolean(row.selected)));
       if(row.hasChildren)node.setAttribute('aria-expanded',String(row.expanded));
-      node.tabIndex=lastRows.findIndex(item=>item.selected)===-1
+      node.tabIndex=selectedIndex===-1
         ? (lastRows[0]===row?0:-1) : (row.selected?0:-1);
       const label=document.createElement('span');
       label.className='studio-tree-label';
