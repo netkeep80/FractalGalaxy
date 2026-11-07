@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-002
 normative: "### FG-GEO-002 — Кубическая ячейка является топологической\n\nProcedural cell может иметь кубическую reference topology и адресацию, не оставаясь геометрическим кубом после deformation. Изменение геометрической формы не должно менять octree address topology."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

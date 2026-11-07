@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-008
 normative: "### FG-GEO-008 — Композиционная деформация вершины\n\nФинальная material coordinate канонической вершины должна вычисляться как композиция явно различимых стадий: базовое отображение формы, процедурная коррекция фрактализатора, сглаживание границы и persistent displacement от взаимодействий. Порядок стадий должен быть детерминирован и наблюдаем."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

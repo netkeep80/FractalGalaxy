@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-001
 normative: "### FG-GEO-001 — Reference и deformed coordinates\n\nOctree-адресация и subdivision должны выполняться в каноническом reference domain, а реальная procedural geometry должна получаться отдельным отображением reference coordinates в deformed material coordinates."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

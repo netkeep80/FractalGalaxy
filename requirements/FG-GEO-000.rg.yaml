@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-000
 normative: "### FG-GEO-000 — Reference topology и процедурная геометрия\n\nСистема должна разделять каноническую кубическую адресную топологию и процедурно деформированную геометрию, сохраняя согласованность общих границ смежных областей."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

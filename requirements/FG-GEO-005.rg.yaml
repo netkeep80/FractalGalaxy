@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-005
 normative: "### FG-GEO-005 — Каноническая геометрия SurfacePatch\n\nКаждый доказанный surface patch должен порождать четыре канонические reference-вершины и четыре стабильных ребра, определяемых только reference topology выбранной грани и параметрическими координатами patch. Независимое построение соседних patches должно давать идентичные ключи общей кромки и совпадающие deformed coordinates общей кромки при одном и том же Φ."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-GEO-009
 normative: "### FG-GEO-009 — Детерминированный RND shared vertex\n\nСлучайная процедурная коррекция координаты вершины должна быть псевдослучайной и воспроизводимой из canonical vertex identity, seed и параметров алгоритма. Два смежных procedural cells или surface patches не должны получать разные RND-offset для одной общей вершины."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]
