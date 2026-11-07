@@ -1,6 +1,7 @@
 import {buildSurfacePatchGeometry,referenceVertexKey} from './surface-patch.mjs';
 import {triangulateSurfacePatchGeometry,triangleNormal} from './triangulation.mjs';
 import {identityDeformation} from './deformation.mjs';
+import {subdivideReferenceFacePatch} from '../surface/interface.mjs';
 
 function immutableVec3(p){return Object.freeze([...p]);}
 function equalVec3(a,b){return a.length===3&&a.every((v,i)=>Object.is(v,b[i])||v===b[i]);}
@@ -25,10 +26,13 @@ function validRecords(extraction){
  * This is local same-depth geometry, not a watertight regional mesh.
  */
 export function assembleProvenSurfaceMesh({
-  extraction,bounds,axis,side,deformation=identityDeformation
+  extraction,bounds,axis,side,deformation=identityDeformation,tessellationDepth=0
 }={}){
   validRecords(extraction);
   if(typeof deformation!=='function')throw new Error('deformation function required');
+  if(!Number.isInteger(tessellationDepth)||tessellationDepth<0||tessellationDepth>4){
+    throw new RangeError('render tessellation depth must be between 0 and 4');
+  }
 
   const vertices=[];
   const byKey=new Map();
@@ -36,8 +40,15 @@ export function assembleProvenSurfaceMesh({
   const patches=[];
 
   for(const item of extraction.present){
+    // A proven interface remains proven across its geometrically sampled
+    // subpatches; this changes only the derived mesh, not the material field.
+    let subpatches=[item.patch];
+    for(let depth=0;depth<tessellationDepth;depth++){
+      subpatches=subpatches.flatMap(p=>subdivideReferenceFacePatch(p));
+    }
+    for(const subpatch of subpatches){
     const geometry=buildSurfacePatchGeometry({
-      bounds,axis,side,patch:item.patch,deformation
+      bounds,axis,side,patch:subpatch,deformation
     });
     const indexed=[];
     for(let k=0;k<geometry.vertexKeys.length;k++){
@@ -72,12 +83,14 @@ export function assembleProvenSurfaceMesh({
       triangles.push(triangle);
     }
     patches.push(freezeRecord({
-      patch:freezeRecord({...item.patch}),
+      patch:freezeRecord({...subpatch}),
+      proofPatch:freezeRecord({...item.patch}),
       depth:item.depth??null,
       pathA:item.pathA?Object.freeze([...item.pathA]):null,
       pathB:item.pathB?Object.freeze([...item.pathB]):null,
       vertexIndices:Object.freeze(indexed),triangleIndices:Object.freeze(triIndices)
     }));
+    }
   }
   return freezeRecord({
     vertices:Object.freeze(vertices),
@@ -89,7 +102,8 @@ export function assembleProvenSurfaceMesh({
       pathA:item.pathA?Object.freeze([...item.pathA]):null
     }))),
     stats:freezeRecord({
-      provenPatches:patches.length,
+      provenPatches:extraction.present.length,
+      renderQuads:patches.length,
       unresolvedPatches:extraction.unresolved.length,
       vertices:vertices.length,
       triangles:triangles.length

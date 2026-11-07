@@ -28,3 +28,7 @@
 
 ## Границы
 Нет доказательства watertight closed mesh, T-junction/coarse-fine stitching, WebGL/WebGPU, global world surface, mesh collision solver. Спецификация не делает эти утверждения.
+
+## S2-B — геометрическое уточнение доказанного patch
+
+Для отображения редактирования центральной вершины доказанной грани Studio применяет `tessellationDepth=1` (один quadtree шаг **только внутри уже proven patch**): 4 render quads, 8 triangles, 9 canonical vertices. `present[]` и `unresolved[]` извлечения не меняются; ни один unresolved patch не триангулируется. Это не увеличение material proof budget и не доказательство закрытой поверхности мира.

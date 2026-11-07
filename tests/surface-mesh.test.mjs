@@ -20,7 +20,7 @@ test('proof boundary: same material produces zero mesh, different media produce 
   const none=assembleProvenSurfaceMesh({...cfg,extraction:classified(rock,rock)});
   assert.equal(none.triangles.length,0);assert.equal(none.vertices.length,0);
   const present=assembleProvenSurfaceMesh({...cfg,extraction:classified(rock,empty)});
-  assert.deepEqual(present.stats,{provenPatches:1,unresolvedPatches:0,vertices:4,triangles:2});
+  assert.deepEqual(present.stats,{provenPatches:1,renderQuads:1,unresolvedPatches:0,vertices:4,triangles:2});
   assert.equal(new Set(present.vertices.map(v=>v.key)).size,4);
   assert.ok(present.triangles.every(t=>t.decision==='PRESENT'&&t.indices.length===3));
 });
@@ -28,7 +28,7 @@ test('MIXED never fabricates triangles and preserves proof gaps at finite depth'
   const extract=classified(()=>mixedVolume(),empty,2);
   assert.equal(extract.unresolved.length,4);
   const m=assembleProvenSurfaceMesh({...cfg,extraction:extract});
-  assert.deepEqual(m.stats,{provenPatches:0,unresolvedPatches:4,vertices:0,triangles:0});
+  assert.deepEqual(m.stats,{provenPatches:0,renderQuads:0,unresolvedPatches:4,vertices:0,triangles:0});
   assert.ok(m.unresolved.every(p=>p.decision==='REFINE'));
   assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction:{
     present:[{patch:makeReferenceFacePatch(),decision:{kind:'REFINE'}}],unresolved:[]}
@@ -47,7 +47,7 @@ test('two adjacent proven patches share one exact canonical edge under RND, smoo
   });
   const extraction={present:[first,second],unresolved:[]};
   const m=assembleProvenSurfaceMesh({...cfg,extraction,deformation});
-  assert.deepEqual(m.stats,{provenPatches:2,unresolvedPatches:0,vertices:6,triangles:4});
+  assert.deepEqual(m.stats,{provenPatches:2,renderQuads:2,unresolvedPatches:0,vertices:6,triangles:4});
   const common=m.patches[0].vertexIndices.filter(i=>m.patches[1].vertexIndices.includes(i));
   assert.equal(common.length,2,'shared edge must use the same actual vertex indices');
   assert.ok(common.some(i=>m.vertices[i].key==='0,-1,1'));
@@ -81,4 +81,27 @@ test('constant mesh evaluator is deterministic and returns nondegenerate surface
  assert.deepEqual(m1,m2);
  assert.ok(m1.triangles.every(t=>Math.hypot(...t.normal)>0));
  assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction:extract,deformation:42}),/deformation/);
+});
+
+test('center vertex of a proven whole face participates in render tessellation, not material proof',()=>{
+  const extraction=classified(rock,empty);
+  const reference=[0,0,1];
+  const baseline=assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:1});
+  assert.deepEqual(baseline.stats,{
+    provenPatches:1,renderQuads:4,unresolvedPatches:0,vertices:9,triangles:8
+  });
+  const moved=assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:1,
+    deformation:makeFractalVertexDeformation({
+      seed:0,randomAmplitude:0,smoothingWeight:0,
+      interactionOffsets:{'0,0,1':[.14,-.1,.25]}
+    })
+  });
+  const center=baseline.vertices.find(v=>v.key==='0,0,1');
+  const movedCenter=moved.vertices.find(v=>v.key==='0,0,1');
+  assert.ok(center);
+  assert.deepEqual(movedCenter.position,[.14,-.1,1.25]);
+  assert.notDeepEqual(moved,baseline);
+  assert.equal(extraction.present.length,1,'tessellation must not change proof');
+  assert.equal(extraction.unresolved.length,0);
+  assert.throws(()=>assembleProvenSurfaceMesh({...cfg,extraction,tessellationDepth:5}),/tessellation depth/);
 });

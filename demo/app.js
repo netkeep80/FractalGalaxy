@@ -826,7 +826,10 @@ function renderGeometryLab() {
   $('impactOffset').textContent = '[' + impact.result.offset.map(value => value.toFixed(3)).join(', ') + ']';
 
   const geometryOptions={
-    extraction:currentSurfaceExtraction,bounds:probe.boundsA,axis,side
+    extraction:currentSurfaceExtraction,bounds:probe.boundsA,axis,side,
+    // Geometric-only 2×2 sampling includes the central editable face vertex.
+    // Does not materialize new material patches or expand unresolved regions.
+    tessellationDepth:1
   };
   currentSurfaceMesh={
     reference:assembleProvenSurfaceMesh({...geometryOptions}),
