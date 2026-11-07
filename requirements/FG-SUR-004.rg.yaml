@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-004
 normative: "### FG-SUR-004 — Интерфейс определяется различием сред\n\nНа общей топологической границе двух однородно классифицированных областей материальный интерфейс должен существовать тогда и только тогда, когда их effective media различаются."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

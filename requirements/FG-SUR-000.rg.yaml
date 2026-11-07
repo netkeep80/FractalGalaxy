@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-000
 normative: "### FG-SUR-000 — Границы сред и surface refinement\n\nСистема должна обнаруживать и уточнять материальные интерфейсы как производное от объёмного состояния по обе стороны топологической границы, не превращая surface hierarchy в независимый источник материи."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

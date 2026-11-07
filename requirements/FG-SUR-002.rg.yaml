@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-002
 normative: "### FG-SUR-002 — Фактическая граница вещества\n\nСистема должна определять границу занятой области из предиката наличия вещества в M, а не приравнивать её к границе кубической ячейки. Внутренний интерфейс различных материалов и внешняя граница между веществом и пустотой должны различаться."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]

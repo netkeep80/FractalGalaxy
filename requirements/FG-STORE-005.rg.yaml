@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-STORE-005
 normative: "### FG-STORE-005 — Отсутствие записи не означает отсутствие области\n\nОтсутствие FractalRing-записи для процедурной области означает отсутствие индивидуализированного persistent state и не должно означать, что сама процедурная область отсутствует или не может быть вычислена."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-SUR-005
 normative: "### FG-SUR-005 — Между одинаковыми средами материальной поверхности нет\n\nОбщая грань двух procedural cells с одной и той же однородной effective medium не должна становиться материальной поверхностью только из-за различия адресов ячеек."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-STORE-001
 normative: "### FG-STORE-001 — Персистентный разреженный мир\n\nЛогический мир должен представляться как персистентное адресуемое хранилище FractalRing-записей и не должен требовать одновременного нахождения всех persistent rings в оперативной памяти."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

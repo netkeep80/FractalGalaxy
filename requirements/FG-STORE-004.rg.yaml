@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-STORE-004
 normative: "### FG-STORE-004 — Хранение только индивидуализированного состояния\n\nПерсистентное представление мира должно позволять не хранить процедурно воспроизводимые области, если у них отсутствует самостоятельное состояние, необходимое для сохранения."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]
