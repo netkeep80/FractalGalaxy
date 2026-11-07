@@ -275,8 +275,9 @@ canvas.addEventListener('click', event => {
   const y = 1 - 2 * ((event.clientY - rect.top) / rect.height);
   const z = Number(controls.zSlice.value);
   selectedPoint = [x, y, z];
-  inspect(buildModel(), selectedPoint);
-  renderGeometryLab();
+  // A selection changes both inspector and 2D selection overlay.
+  // Re-render the owning view instead of updating only the downstream 3D scene.
+  renderMaterialView();
 });
 
 for (const input of Object.values(controls)) {

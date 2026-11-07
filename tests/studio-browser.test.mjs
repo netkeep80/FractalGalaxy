@@ -223,16 +223,17 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       const p=await locateCanvas('view',0.18,0.28);
       assert.ok(p.over,'2D click is on-screen and targets actual canvas');
       const selectedBefore = await inspect();
-      const canvasBefore=await cdp.evaluate('document.getElementById("view").toDataURL()');
+      const sliceHash = () => cdp.evaluate('(() => {const a=document.getElementById("view").getContext("2d").getImageData(0,0,640,640).data;let h=2166136261;for(let i=0;i<a.length;i+=43)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
+      const canvasBefore=await sliceHash();
       await click(p);
       const expected = await cdp.evaluate('(async()=>{const {addressForPoint}=await import("/src/fractal-matter.mjs");const c=document.getElementById("view");const r=c.getBoundingClientRect();const x=-1+2*('+p.x+'-r.left)/r.width;const y=1-2*('+p.y+'-r.top)/r.height;const z=Number(document.getElementById("zSlice").value);return "/"+addressForPoint([x,y,z],Number(document.getElementById("probeDepth").value)).path.join("/");})()');
       assert.notEqual(expected,selectedBefore.path,'precondition: 2D click changes octree cell');
       assert.equal((await inspect()).path,expected);
-      assert.notEqual(await cdp.evaluate('document.getElementById("view").toDataURL()'),canvasBefore,'2D marker must redraw after 2D selection');
+      assert.notEqual(await sliceHash(),canvasBefore,'2D marker must redraw after 2D selection');
     });
 
     await t.test('parent, breadcrumb root and depth limit are enforced', async () => {
-      await cdp.evaluate('document.querySelector("#studioBreadcrumbs button[data-depth=\"0\"]").click()');
+      await cdp.evaluate('document.querySelector("#studioBreadcrumbs button[data-depth=0]").click()');
       assert.equal((await inspect()).path,'/');
       assert.equal((await inspect()).level,0);
       assert.equal(await cdp.evaluate('document.getElementById("studioParent").disabled'),true);
@@ -250,11 +251,11 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     await t.test('view modes keep same selection and camera representation', async () => {
       const before=await inspect();
       for (const mode of ['deformed','split','reference']) {
-        await cdp.evaluate('document.querySelector("[data-view='+JSON.stringify(mode)+']").click()');
+        await cdp.evaluate('document.querySelector("[data-view='+mode+']").click()');
         assert.equal(await cdp.evaluate('document.querySelector(".studio-views").dataset.mode'),mode);
         assert.equal((await inspect()).path,before.path);
         assert.equal((await inspect()).mass,before.mass);
-        assert.equal(await cdp.evaluate('document.querySelector("[data-view='+JSON.stringify(mode)+']").getAttribute("aria-pressed")'),'true');
+        assert.equal(await cdp.evaluate('document.querySelector("[data-view='+mode+']").getAttribute("aria-pressed")'),'true');
       }
     });
 
