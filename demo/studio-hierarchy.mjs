@@ -1,6 +1,5 @@
 // Read-only hierarchy projections. No procedural expansion materializes a FractalRing.
 import { formatPath } from './studio-picking.mjs';
-import { ringRecordState, ringIdsForPhysicalParent, validateWorldStore } from './src/fractal-matter.mjs';
 
 export const MAX_STUDIO_TREE_DEPTH = 4;
 function validPath(path) {
@@ -57,23 +56,24 @@ export function e0SplitTreeRows(model, { expanded = new Set(['split:root','split
   }
   return rows;
 }
-function stateRow(store, ring, depth) {
+function stateRow(store, ring, depth, core) {
   return {key:'ring:'+ring.id,label:ring.id,ringId:ring.id,depth,kind:'ring',
-    status:ringRecordState(store,ring.id),hasChildren:false,selected:false};
+    status:core.ringRecordState(store,ring.id),hasChildren:false,selected:false};
 }
-export function fractalRingTreeRows(store,{relation='physical',expanded=new Set()}={}) {
-  validateWorldStore(store);
+export function fractalRingTreeRows(store,{relation='physical',expanded=new Set(),core}={}) {
+  if (!core?.validateWorldStore || !core?.ringRecordState || !core?.ringIdsForPhysicalParent) throw new Error('WorldStore API required');
+  core.validateWorldStore(store);
   if (relation!=='physical' && relation!=='source') throw new RangeError('invalid ring relation');
   if (relation==='physical') {
     const result=[];
     const walk=(id,depth)=>{
       const record=store.records[id];
-      const children=ringIdsForPhysicalParent(store,id);
+      const children=core.ringIdsForPhysicalParent(store,id);
       const key='ring:'+id;
-      result.push({...stateRow(store,record,depth),hasChildren:children.length>0,expanded:children.length>0&&expanded.has(key)});
+      result.push({...stateRow(store,record,depth,core),hasChildren:children.length>0,expanded:children.length>0&&expanded.has(key)});
       if(expanded.has(key))for(const child of children) walk(child,depth+1);
     };
-    for(const id of ringIdsForPhysicalParent(store,null))walk(id,0);
+    for(const id of core.ringIdsForPhysicalParent(store,null))walk(id,0);
     return result;
   }
   // Virtual source-prefix nodes are strictly grouping labels, not materialized rings.
@@ -101,7 +101,7 @@ export function fractalRingTreeRows(store,{relation='physical',expanded=new Set(
         path:[...path],depth,kind:'source',hasChildren:children>0,expanded:children>0&&expanded.has(key),virtual:true});
       if(expanded.has(key)){
         for(const [branch,child] of branches)walk(child,[...path,branch],depth+1);
-        for(const ring of rings)result.push(stateRow(store,ring,depth+1));
+        for(const ring of rings)result.push(stateRow(store,ring,depth+1,core));
       }
     };
     walk(group,[],0);

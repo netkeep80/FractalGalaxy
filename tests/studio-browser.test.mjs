@@ -154,7 +154,7 @@ test('real Chromium Studio workspace: direct 3D picking, hierarchy and locale ro
     chrome?.socket.close();
     chrome?.child.kill('SIGKILL');
     if (server) await new Promise(resolve => server.close(resolve));
-    await rm(temp,{recursive:true,force:true});
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
   }
 });
 
@@ -350,6 +350,6 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     chrome?.socket.close();
     chrome?.child.kill('SIGKILL');
     if(server) await new Promise(resolve => server.close(resolve));
-    await rm(temp,{recursive:true,force:true});
+    await rm(temp,{recursive:true,force:true,maxRetries:6,retryDelay:150});
   }
 });

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {makeMemoryWorldStore,putFractalRingRecord} from '../src/fractal-matter.mjs';
+import {makeMemoryWorldStore,validateWorldStore,ringRecordState,ringIdsForPhysicalParent} from '../src/fractal-matter.mjs';
+const core={validateWorldStore,ringRecordState,ringIdsForPhysicalParent};
 import {octreeKey,octreeTreeRows,expandedForOctreeSelection,e0SplitTreeRows,fractalRingTreeRows} from '../demo/studio-hierarchy.mjs';
 
 test('octree tree is lazy, has exactly eight children per expanded node and never materializes rings',()=>{
@@ -35,27 +36,27 @@ function fixture(){
 }
 test('physical FractalRing view follows physicalParentId, independently of source paths/residency',()=>{
   const store=fixture();
-  assert.equal(fractalRingTreeRows(makeMemoryWorldStore()).length,0);
-  const roots=fractalRingTreeRows(store);
+  assert.equal(fractalRingTreeRows(makeMemoryWorldStore(),{core}).length,0);
+  const roots=fractalRingTreeRows(store,{core});
   assert.deepEqual(roots.map(row=>row.ringId),['cargo','planet']);
-  const rows=fractalRingTreeRows(store,{expanded:new Set(['ring:planet'])});
+  const rows=fractalRingTreeRows(store,{expanded:new Set(['ring:planet']),core});
   assert.deepEqual(rows.map(row=>row.ringId),['cargo','planet','piece']);
   assert.equal(rows.find(row=>row.ringId==='piece').status,'UNLOADED');
   assert.equal(rows.find(row=>row.ringId==='planet').status,'RESIDENT');
 });
 test('source tree builds virtual addresses, never invents intermediate rings',()=>{
   const store=fixture();
-  let rows=fractalRingTreeRows(store,{relation:'source'});
+  let rows=fractalRingTreeRows(store,{relation:'source',core});
   assert.equal(rows.length,2);
   const group=rows.find(row=>row.label.startsWith('planet-source'));
   assert.ok(group);
   const expanded=new Set([group.key]);
   for(const segment of ['','/5','/5/2','/5/2/7','/5/2/7/3']){
-    rows=fractalRingTreeRows(store,{relation:'source',expanded});
+    rows=fractalRingTreeRows(store,{relation:'source',expanded,core});
     const node=rows.find(row=>row.kind==='source'&&row.label.includes('planet-source')&&segment==='')??rows.find(row=>row.kind==='source'&&'/'+row.path.join('/')===segment);
     if(node)expanded.add(node.key);
   }
-  rows=fractalRingTreeRows(store,{relation:'source',expanded});
+  rows=fractalRingTreeRows(store,{relation:'source',expanded,core});
   assert.ok(rows.some(row=>row.kind==='ring'&&row.ringId==='piece'));
   assert.equal(rows.filter(row=>row.kind==='ring'&&row.ringId==='piece').length,1);
   assert.ok(rows.some(row=>row.kind==='source'&&row.path?.join('/')==='5/2/7'));

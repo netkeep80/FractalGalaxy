@@ -23,8 +23,13 @@ import {
   triangulateSurfacePatchGeometry,
   makeFractalVertexDeformation,
   evaluateGeometryInfluence,
-  referenceVertexKey
+  referenceVertexKey,
+  makeMemoryWorldStore,
+  ringRecordState,
+  ringIdsForPhysicalParent,
+  validateWorldStore
 } from './src/fractal-matter.mjs';
+import {createStudioHierarchyUI} from './studio-tree.mjs';
 import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
 import { localeFor, translate, validateTranslations } from './studio-i18n.mjs';
 
@@ -304,6 +309,9 @@ const deformedCanvas = $('deformedView');
 const camera = { yaw: -0.66, pitch: 0.46, zoom: 1 };
 let drag = null;
 let studioUi = null;
+let studioTreeUi = null;
+// E0 material Split is not a FractalRing overlay. No persistent rings are invented for display.
+const demoWorldStore = makeMemoryWorldStore({resident:'none'});
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 
 function classificationFor(value) {
@@ -824,6 +832,24 @@ function createStudioWorkspace() {
   `;
   inspector.append(document.querySelector('.lab-readout'));
   grid.append(inspector);
+  const treeMount=document.createElement('section');
+  treeMount.className='studio-tree-widget';
+  inspector.insertBefore(treeMount,$('studioDiagnosticsHeading'));
+  studioTreeUi=createStudioHierarchyUI({
+    mount:treeMount,translate:tr,getLocale:()=>activeLocale,
+    getSelectedPath:()=>currentProbeContext().pathA,
+    getSelectedOwner:()=>ownerAt(buildModel(),selectedPoint).name,
+    getSplitModel:buildModel,
+    getWorldStore:()=>demoWorldStore,
+    core:{ringRecordState,ringIdsForPhysicalParent,validateWorldStore},
+    onSelectOctree:path=>selectStudioPath(path),
+    onSelectSplit:owner=>{
+      const z=Number(controls.zSlice.value);
+      selectedPoint=owner==='left'?[-0.5,0,z]:owner==='rb'?[0.5,-0.5,z]:[0.5,0.5,z];
+      controls.mode.value='owners';
+      renderMaterialView();
+    }
+  });
 
   const buttons = [...views.querySelectorAll('[data-view]')];
   const setMode = mode => {
@@ -888,6 +914,7 @@ function syncStudioSelection(probe) {
     button.setAttribute('aria-current', String(depth === probe.depth));
     nav.append(button);
   }
+  studioTreeUi?.sync();
 }
 
 function replaceVisibleText(element, value) {

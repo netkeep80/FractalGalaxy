@@ -448,3 +448,22 @@ button:disabled { opacity:.4; cursor:not-allowed; }
   .lab-controls, .studio-inspector { grid-column:auto; position:static; max-height:none; }
   .studio-views[data-mode="split"] .studio-viewports { grid-template-columns:1fr; }
 }
+
+/* Accessible, lazily expanded hierarchy viewers (distinct semantic relations). */
+.studio-tree-widget {border-top:1px solid #234057;border-bottom:1px solid #234057;padding:14px 0;margin:16px 0;}
+.studio-tree-title {font-size:14px;margin:0 0 10px!important;}
+.studio-tree-tabs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-bottom:10px;}
+.studio-tree-tabs button {padding:7px 5px;font-size:11px;border:1px solid #294154;text-align:center;min-width:0;}
+.studio-tree-tabs button[aria-selected=true] {border-color:#65e7bb;background:#173a3b;color:#9ff4d3;}
+.studio-tree-panel {max-height:310px;overflow:auto;border:1px solid #1d3747;border-radius:8px;padding:4px;background:#06111a;scrollbar-width:thin;}
+.studio-tree-row {display:flex;align-items:stretch;min-width:0;gap:2px;}
+.studio-tree-toggle {flex:none;border:0;background:transparent;color:#74c9b3;padding:3px 4px;font-size:14px;width:20px;min-width:20px;cursor:pointer;}
+.studio-tree-toggle:disabled {opacity:.25;cursor:default;}
+.studio-tree-node {display:flex;align-items:center;justify-content:space-between;gap:5px;border:1px solid transparent;border-radius:5px;background:transparent;color:#b8cad9;min-width:0;flex:1;text-align:left;padding:5px 5px;font-size:12px;cursor:pointer;}
+.studio-tree-node small {font-size:9px;color:#7897ab;white-space:nowrap;}
+.studio-tree-node[aria-selected=true] {background:#153f40;border-color:#48c99f;color:#cbffe9;}
+.studio-tree-node:focus-visible,.studio-tree-toggle:focus-visible {outline:2px solid #6cddb8;outline-offset:1px;}
+.studio-tree-node:hover {background:#173142;}
+.studio-tree-label {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.studio-tree-note {font-size:10px;color:#859db0;margin:8px 2px;line-height:1.45;}
+.studio-tree-details {font-size:10px;color:#b6d5e7;overflow-wrap:anywhere;line-height:1.45;}

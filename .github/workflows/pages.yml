@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           rm -rf .pages
           mkdir -p .pages/src
-          cp demo/index.html demo/app.js demo/styles.css demo/studio-picking.mjs demo/studio-i18n.mjs .pages/
+          cp demo/index.html demo/app.js demo/styles.css demo/studio-picking.mjs demo/studio-i18n.mjs demo/studio-hierarchy.mjs demo/studio-tree.mjs .pages/
           cp -R src/. .pages/src/
           touch .pages/.nojekyll
 
