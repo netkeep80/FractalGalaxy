@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {makeGamma,makeMaterial} from '../src/fractal-matter.mjs';
+import {EMPTY,makeGamma,makeMaterial} from '../src/fractal-matter.mjs';
 import {
   octreePathsAtDepth,
   enumerateRegionalFacePairs,
@@ -85,4 +85,27 @@ test('S3-A canonical regional result is invariant to input traversal order',()=>
   assert.deepEqual(compact(reverse),compact(forward));
   assert.ok(forward.present.length>0,'fixture must exercise proven regional interfaces');
   assert.ok(forward.unresolved.length>0,'fixture must preserve finite-depth proof gaps');
+});
+
+test('S3-A regional proof preserves D overrides across the wrapper',()=>{
+  const material=makeMaterial({
+    id:'d-backed',
+    gamma:makeGamma({rootSeed:1,fixture:'solid'}),
+    edits:[{path:[0],value:EMPTY}]
+  });
+  const result=extractRegionalMaterialInterfaces(material,{
+    cellPaths:[[0],[1]],
+    maxDepth:1,
+    outsideMedium:'EMPTY'
+  });
+  assert.equal(result.stats.provenPatches,4);
+  assert.equal(result.stats.unresolvedPatches,0);
+  const internal=result.present.filter(item=>item.rootPathB!==null);
+  assert.equal(internal.length,1);
+  assert.deepEqual(internal[0].rootPathA,[0]);
+  assert.deepEqual(internal[0].rootPathB,[1]);
+  assert.equal(internal[0].axis,'x');
+  assert.equal(internal[0].side,1);
+  assert.equal(internal[0].decision.leftMedium,'EMPTY');
+  assert.equal(internal[0].decision.rightMedium,'SOLID:rock:1');
 });
