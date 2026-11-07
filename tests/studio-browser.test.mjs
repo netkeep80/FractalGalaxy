@@ -260,19 +260,59 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('independent material proof result: same medium NONE, distinct PRESENT, MIXED unresolved', async () => {
+      await setControl('probeDepth','0','input');
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
       await setControl('mediumB','ROCK');
-      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'NONE');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").dataset.kind'),'NONE');
       assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'0');
       assert.equal(await cdp.evaluate('document.getElementById("unresolvedPatches").textContent'),'0');
       await setControl('mediumB','EMPTY');
-      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'PRESENT');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").dataset.kind'),'PRESENT');
       assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'1');
       await setControl('mediumA','MIXED');
-      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'REFINE');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").dataset.kind'),'REFINE');
       assert.equal(await cdp.evaluate('document.getElementById("presentPatches").textContent'),'0');
       assert.equal(await cdp.evaluate('document.getElementById("unresolvedPatches").textContent'),'1');
+      await setControl('interfaceSource','procedural');
+    });
+
+    await t.test('surface proof and unresolved rendering have distinct visual effects, and only proven patches triangulate', async () => {
+      const hash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
+      const setTriangles = checked => cdp.evaluate('(() => {const e=document.getElementById("showTriangulation");e.checked='+checked+';e.dispatchEvent(new Event("change",{bubbles:true}));})()');
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','ROCK');
+      const none = await hash();
+      await setControl('mediumB','EMPTY');
+      const proven = await hash();
+      assert.notEqual(none,proven,'PRESENT must draw a different interface than NONE');
+      await setTriangles(false);
+      const noTriangles = await hash();
+      assert.notEqual(noTriangles,proven,'proven patch should show deterministic triangulation');
+      await setTriangles(true);
+      await setControl('mediumA','MIXED');
+      const unresolvedWithTriangles = await hash();
+      await setTriangles(false);
+      assert.equal(await hash(),unresolvedWithTriangles,'unresolved patch must not be triangulated');
+      assert.notEqual(unresolvedWithTriangles,proven,'unresolved and proven must look different');
+      await setTriangles(true);
+      await setControl('interfaceSource','procedural');
+    });
+
+    await t.test('diagnostic text is translated but its canonical classification remains constant', async () => {
+      await setControl('interfaceSource','manual');
+      await setControl('mediumA','ROCK');
+      await setControl('mediumB','EMPTY');
+      await setControl('studioLanguage','ru');
+      assert.match(await cdp.evaluate('document.getElementById("classificationA").textContent'),/^Однородная область/);
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").dataset.kind'),'PRESENT');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'Граница обнаружена');
+      await setControl('studioLanguage','en');
+      assert.match(await cdp.evaluate('document.getElementById("classificationA").textContent'),/^Homogeneous region/);
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").dataset.kind'),'PRESENT');
+      assert.equal(await cdp.evaluate('document.getElementById("interfaceBadge").textContent'),'Interface present');
+      await setControl('studioLanguage','ru');
       await setControl('interfaceSource','procedural');
     });
 
