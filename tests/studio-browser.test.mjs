@@ -345,6 +345,56 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.equal(await cdp.evaluate('localStorage.getItem("fractalgalaxy.locale")'),'ru');
     });
 
+    await t.test('octree tree lazy expansion, keyboard support and canonical selection', async () => {
+      await cdp.evaluate('document.getElementById("studioHierarchyTab_octree").click()');
+      const initial=await cdp.evaluate('({role:document.getElementById("studioHierarchyTree").getAttribute("role"),nodes:document.querySelectorAll("#studioHierarchyTree [role=treeitem]").length,selected:[...document.querySelectorAll("#studioHierarchyTree [aria-selected=true]")].map(x=>x.dataset.treeKey)})');
+      assert.equal(initial.role,'tree');
+      assert.ok(initial.nodes<150,'octree hierarchy must be lazy rather than eagerly creating all 8^4 cells');
+      assert.deepEqual(initial.selected,['octree:'+(await inspect()).path]);
+
+      await cdp.evaluate('(() => {const root=[...document.querySelectorAll("#studioHierarchyTree [data-tree-key]")].find(x=>x.dataset.treeKey==="octree:/"); root.focus();root.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowLeft",bubbles:true}));})()');
+      assert.equal(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [role=treeitem]").length'),1);
+      assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [role=treeitem]").getAttribute("aria-expanded")'),'false');
+      await cdp.evaluate('(() => {const root=document.querySelector("#studioHierarchyTree [role=treeitem]");root.focus();root.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true}));})()');
+      assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [role=treeitem]").getAttribute("aria-expanded")'),'true');
+      const nodesAfter=await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [role=treeitem]").length');
+      assert.ok(nodesAfter>=9 && nodesAfter<150);
+      await cdp.evaluate('(() => {const child=[...document.querySelectorAll("#studioHierarchyTree [data-tree-key]")].find(x=>x.dataset.treeKey==="octree:/6");child.click();})()');
+      assert.equal((await inspect()).path,'/6');
+      assert.equal((await inspect()).level,1);
+      assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [aria-selected=true]").dataset.treeKey'),'octree:/6');
+      assert.equal(await cdp.evaluate('document.getElementById("studioBreadcrumbs").querySelectorAll("button").length'),2);
+    });
+
+    await t.test('Split tree identifies current owner leaves and does not impersonate physical parenthood',async()=>{
+      await cdp.evaluate('document.getElementById("studioHierarchyTab_split").click()');
+      const names=await cdp.evaluate('[...document.querySelectorAll("#studioHierarchyTree [data-tree-key]")].map(x=>x.dataset.treeKey)');
+      assert.deepEqual(names,['split:root','split:left','split:right','split:rb','split:rt']);
+      assert.match(await cdp.evaluate('document.querySelector(".studio-tree-note").textContent'),/не физическое/);
+      await cdp.evaluate('(() => {const leaf=[...document.querySelectorAll("#studioHierarchyTree [data-tree-key]")].find(x=>x.dataset.treeKey==="split:rb");leaf.click();})()');
+      assert.equal(await cdp.evaluate('document.getElementById("mode").value'),'owners');
+      assert.equal(await cdp.evaluate('document.getElementById("owner").textContent'),'rb');
+      const selected=await inspect();
+      assert.match(selected.path,/^\/[0-7]+/);
+      assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [aria-selected=true]").dataset.treeKey'),'split:rb');
+    });
+
+    await t.test('physical and procedural FractalRing viewers display honest empty state',async()=>{
+      const before=await inspect();
+      for(const mode of ['physical','source']){
+        await cdp.evaluate('document.getElementById("studioHierarchyTab_'+mode+'").click()');
+        assert.equal(await cdp.evaluate('document.querySelectorAll("#studioHierarchyTree [role=treeitem]").length'),0);
+        assert.match(await cdp.evaluate('document.querySelector(".studio-tree-note").textContent'),/нет сохранённых FractalRing/);
+        assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTab_'+mode+'").getAttribute("aria-selected")'),'true');
+        assert.equal((await inspect()).path,before.path);
+      }
+      await setControl('studioLanguage','en');
+      assert.match(await cdp.evaluate('document.querySelector(".studio-tree-note").textContent'),/No persisted FractalRing/);
+      await setControl('studioLanguage','ru');
+      await cdp.evaluate('document.getElementById("studioHierarchyTab_octree").click()');
+      assert.equal(await cdp.evaluate('document.querySelector("#studioHierarchyTree [aria-selected=true]").dataset.treeKey'),'octree:'+(await inspect()).path);
+    });
+
     assert.deepEqual(cdp.exceptions,[], 'no JavaScript exceptions under acceptance scenarios');
   } finally {
     chrome?.socket.close();
