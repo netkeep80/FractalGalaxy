@@ -375,7 +375,10 @@ const studioPerformance={
   lastVisibilityBroadPhaseOperations:0,
   lastVisibilitySatRejected:0,
   lastVisibilityClipCalls:0,
-  lastVisibilityCacheHit:false
+  lastVisibilityCacheHit:false,
+  lastVisibilityPrepareMs:0,
+  lastVisibilityPaintMs:0,
+  lastRegionalGapMs:0
 };
 globalThis.__fractalGalaxyPerformance=Object.freeze({
   snapshot:()=>Object.freeze({...studioPerformance})
@@ -971,7 +974,11 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   studioPerformance.lastVisibilitySatRejected=visibilityStats.satRejected??0;
   studioPerformance.lastVisibilityClipCalls=visibilityStats.clipCalls??0;
   studioPerformance.lastVisibilityCacheHit=Boolean(visibilityStats.visibilityCacheHit);
+  studioPerformance.lastVisibilityPrepareMs=visibilityStats.prepareMs??0;
+  studioPerformance.lastVisibilityPaintMs=visibilityStats.paintMs??0;
+  const gapStarted=performance.now();
   drawRegionalProofGaps(context,canvasElement,deformed,project);
+  studioPerformance.lastRegionalGapMs=performance.now()-gapStarted;
 }
 function surfaceProofLabel(mesh){
   if(!mesh)return '—';

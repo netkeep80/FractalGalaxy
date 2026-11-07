@@ -535,7 +535,9 @@ export function prepareProofTriangles(mesh,project,{
   return ordered;
 }
 export function paintProvenSurface(context,mesh,project,options={}){
+  const started=performance.now();
   const tris=prepareProofTriangles(mesh,project,options);
+  const preparedAt=performance.now();
   context.save();
   for(const t of tris){
     const fill=t.fill;
@@ -552,5 +554,9 @@ export function paintProvenSurface(context,mesh,project,options={}){
     context.stroke();
   }
   context.restore();
+  if(options.stats&&typeof options.stats==='object'){
+    options.stats.prepareMs=preparedAt-started;
+    options.stats.paintMs=performance.now()-preparedAt;
+  }
   return tris.length;
 }

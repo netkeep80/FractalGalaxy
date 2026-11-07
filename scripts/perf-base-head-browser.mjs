@@ -127,9 +127,10 @@ async function measure(root,binary,profile,samples,mode){
     }else throw new Error('unknown benchmark mode '+mode);
     if(cdp.exceptions.length)throw new Error('browser exceptions: '+JSON.stringify(cdp.exceptions));
     const sorted=[...timings].sort((a,b)=>a-b);
+    const perf=await cdp.evaluate('globalThis.__fractalGalaxyPerformance?.snapshot?.()??null');
     return {
       mode,triangles,samples:timings.length,min:sorted[0],
-      p50:percentile(sorted,.5),p95:percentile(sorted,.95),max:sorted.at(-1)
+      p50:percentile(sorted,.5),p95:percentile(sorted,.95),max:sorted.at(-1),perf
     };
   }finally{
     chrome.socket.close();chrome.child.kill('SIGKILL');
