@@ -200,6 +200,38 @@ test('S2 rendering regressions: fresh mode roundtrip and curved local depth orde
     const pixel=await cdp.evaluate('[...document.getElementById("deformedView").getContext("2d").getImageData(194,335,1,1).data]');
     assert.deepEqual(pixel,[29,144,109,255],
       'nearest curved local triangle must supply the opaque overlap pixel');
+
+    await cdp.evaluate('document.getElementById("resetCamera").click()');
+    await cdp.evaluate(`(() => {
+      window.__fgGapPaths=[];
+      if(window.__fgGapCaptureInstalled)return;
+      window.__fgGapCaptureInstalled=true;
+      const proto=CanvasRenderingContext2D.prototype;
+      const begin=proto.beginPath,move=proto.moveTo,line=proto.lineTo,stroke=proto.stroke;
+      proto.beginPath=function(){this.__fgAuditPath=[];return begin.call(this);};
+      proto.moveTo=function(x,y){this.__fgAuditPath?.push([x,y]);return move.call(this,x,y);};
+      proto.lineTo=function(x,y){this.__fgAuditPath?.push([x,y]);return line.call(this,x,y);};
+      proto.stroke=function(){
+        if(String(this.strokeStyle).toLowerCase()==='#f3b35c'){
+          window.__fgGapPaths.push({canvas:this.canvas.id,points:[...(this.__fgAuditPath??[])]});
+        }
+        return stroke.call(this);
+      };
+    })()`);
+    await setControl('mediumA','MIXED');
+    const gapEvidence=await cdp.evaluate(`(() => {
+      const paths=(window.__fgGapPaths??[]).filter(item=>item.canvas==='deformedView');
+      const path=paths.find(item=>item.points.length===8);
+      const yaw=-.66,pitch=.46,cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+      const x=0,y=-Math.SQRT1_2,z=Math.SQRT1_2;
+      const x1=x*cy+z*sy,z1=-x*sy+z*cy,y1=y*cp-z1*sp;
+      const scale=420*.30;
+      const expected=[300+x1*scale,210-y1*scale];
+      const distance=path?Math.min(...path.points.map(p=>Math.hypot(p[0]-expected[0],p[1]-expected[1]))):Infinity;
+      return {count:path?.points.length??0,distance};
+    })()`);
+    assert.equal(gapEvidence.count,8,'depth-1 unresolved Canvas outline must include canonical edge midpoints');
+    assert.ok(gapEvidence.distance<1e-7,'unresolved Canvas path must pass through the canonical deformed midpoint');
     assert.deepEqual(cdp.exceptions,[],'no JavaScript exceptions under S2 rendering regressions');
   }finally{
     chrome?.socket.close();chrome?.child.kill('SIGKILL');
