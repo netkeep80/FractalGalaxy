@@ -105,7 +105,9 @@ test('second influence after split updates all shared copies and a subsequent ne
   assert.equal(second.created.length,0,'already materialized descendants must be updated rather than duplicated');
   assert.equal(second.updated.length,4,'shared upper-face center belongs to four child octants');
   const expected=worldGeometryOffsets(store,source)['0,0,1'];
-  assert.deepEqual(expected,[before[0],before[1]+.15,before[2]]);
+  assert.equal(expected[0],before[0]);
+  assert.ok(Math.abs(expected[1]-(before[1]+.15))<1e-12);
+  assert.equal(expected[2],before[2]);
   const touching=second.updated;
   for(const id of touching){
     assert.deepEqual(ringVertexWorldPosition(store,id,ref,canonical),
