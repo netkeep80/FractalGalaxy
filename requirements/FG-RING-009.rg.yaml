@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-009
 normative: "### FG-RING-009 — Прямая материализация глубокой области\n\nИзменение глубокой процедурной области не должно требовать персистентной материализации всех неизменённых промежуточных octree-областей. FractalRing должен иметь возможность непосредственно ссылаться на глубокий процедурный адрес относительно своего источника."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

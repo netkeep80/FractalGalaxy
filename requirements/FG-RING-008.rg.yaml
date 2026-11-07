@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-008
 normative: "### FG-RING-008 — Независимость процедурного и физического родителя\n\nПроцедурный источник FractalRing и его текущий родитель в физической иерархии являются разными отношениями. Перемещение, Attach или Detach не должны изменять процедурное происхождение объекта."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-010
 normative: "### FG-RING-010 — Геометрическое отклонение материализует FractalRing\n\nОбласть, которая получила persistent geometry override относительно канонической процедурной геометрии, должна считаться индивидуализированной и требовать FractalRing materialization даже если её medium и другие материальные параметры не изменились."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]
