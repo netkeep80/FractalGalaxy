@@ -49,3 +49,8 @@ S3-B extends the same-depth S3-A extractor with an adaptive mixed-depth leaf-reg
 S3-C Studio adds a Regional surface mode over a finite depth-2 region, refined by material proof through E0 depth 5. It shows the regional proven mesh and unresolved proof contours with explicit regional face/unresolved counters. This view remains derived and does not write M, D or WorldStore.
 
 S3-D replaces endpoint-only nonlinear support-grid chords. The displayed root topology grid is now sampled through canonical intermediate vertices; intersecting lines reuse a shared canonical vertex identity and evaluate deformation at that point.
+
+
+### Regional rendering cost
+
+Regional Canvas rendering keeps the S2 overlap-correct visibility ordering. A projected triangle bounding-box broad phase now rejects obviously disjoint triangle pairs before polygon overlap/depth analysis. This is a rendering-cost optimization only: it does not change material proof, mesh topology or painter ordering for triangles whose projected bounds overlap.
