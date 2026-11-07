@@ -887,9 +887,15 @@ function syncStudioSelection(probe) {
 
 function replaceVisibleText(element, value) {
   if (!element) throw new Error('missing localized Studio element');
+  // Dynamic outputs keep their nodes; long descriptions replace all old-language
+  // fragments rather than leaving stale markup from the previous locale.
+  if (!element.querySelector('output')) {
+    element.textContent = value;
+    return;
+  }
   const first = [...element.childNodes].find(node => node.nodeType === 3);
-  if (first) first.nodeValue = value + (element.querySelector('output') ? ' ' : '');
-  else element.textContent = value;
+  if (first) first.nodeValue = value + ' ';
+  else element.prepend(document.createTextNode(value + ' '));
 }
 
 function applyStudioLocale() {
