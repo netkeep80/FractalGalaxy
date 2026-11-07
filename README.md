@@ -71,7 +71,7 @@ npm run demo
 11. [Иерархия требований](docs/requirements-hierarchy.md)
 12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 56 кандидатных native Requirement, включая `FG-PROT-001` для CPU-прототипа и `FG-WEB-001` для браузерного демо. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 84 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
 
 ## Основные термины
 
