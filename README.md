@@ -38,7 +38,8 @@
 - recursive interface extraction: доказанные и unresolved surface patches на reference/deformed представлениях;
 - каноническая SurfacePatch geometry: общие reference/deformed рёбра соседних patches совпадают до triangulation;
 - детерминированная triangulation proven patches с topology-derived winding;
-- vertex deformation pipeline: базовая форма, deterministic RND, boundary smoothing и persistent impact displacement.
+- vertex deformation pipeline: базовая форма, deterministic RND, boundary smoothing и persistent impact displacement;
+- geometry influence threshold: подпороговые воздействия не изменяют форму и не материализуют FractalRing.
 
 Исходники страницы находятся в [demo/](demo/). Публикация выполняется workflow [pages.yml](.github/workflows/pages.yml).
 
@@ -79,7 +80,7 @@ npm run demo
 11. [Иерархия требований](docs/requirements-hierarchy.md)
 12. [E1: границы сред и деформированная геометрия](docs/surface-and-geometry.md)
 
-Набор содержит 101 кандидатный native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
+Набор содержит 104 кандидатных native Requirement. Они образуют явную иерархию `derives_from` с двумя корнями: `FG-PRODUCT-000` для требований к продукту и `FG-PROJECT-000` для требований к проекту. Все `requirements/*.rg.yaml` остаются candidate с `accepted:false/current:false/published:false`.
 
 ## Основные термины
 

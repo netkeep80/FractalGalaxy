@@ -21,7 +21,9 @@ import {
   extractMaterialInterface,
   buildSurfacePatchGeometry,
   triangulateSurfacePatchGeometry,
-  makeFractalVertexDeformation
+  makeFractalVertexDeformation,
+  evaluateGeometryInfluence,
+  referenceVertexKey
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -47,6 +49,9 @@ const lab = {
   deformBlend: $('deformBlend'),
   rndAmplitude: $('rndAmplitude'),
   smoothingWeight: $('smoothingWeight'),
+  influenceMagnitude: $('influenceMagnitude'),
+  influenceThreshold: $('influenceThreshold'),
+  influenceCompliance: $('influenceCompliance'),
   showTriangulation: $('showTriangulation')
 };
 
@@ -332,13 +337,38 @@ function baseGeometryDeformation(point) {
   return point.map((value, i) => value + (sphere[i] - value) * blend);
 }
 
+function currentImpact() {
+  const probe = currentProbeContext();
+  const reference = facePointForBounds(probe.boundsA, probe.axis, probe.side, -1, -1);
+  const normal = probe.axis === 'x'
+    ? [probe.side, 0, 0]
+    : probe.axis === 'y'
+      ? [0, probe.side, 0]
+      : [0, 0, probe.side];
+  const magnitude = Number(lab.influenceMagnitude.value);
+  const result = evaluateGeometryInfluence(
+    normal.map(value => value * magnitude),
+    {
+      threshold: Number(lab.influenceThreshold.value),
+      compliance: Number(lab.influenceCompliance.value)
+    }
+  );
+  return { reference, result };
+}
+
 function currentVertexDeformation() {
+  const impact = currentImpact();
+  const interactionOffsets = impact.result.active
+    ? { [referenceVertexKey(impact.reference)]: impact.result.offset }
+    : {};
+
   return makeFractalVertexDeformation({
     baseDeformation: baseGeometryDeformation,
     seed: parseSeed(),
     randomAmplitude: Number(lab.rndAmplitude.value),
     smoothingWeight: Number(lab.smoothingWeight.value),
-    smoothingTarget: ({ basePosition }) => basePosition
+    smoothingTarget: ({ basePosition }) => basePosition,
+    interactionOffsets
   });
 }
 
@@ -361,7 +391,7 @@ function rotateProject(point, canvasElement) {
 }
 
 function mapGeometry(point, deformed) {
-  return deformed ? blendedDeformation(point) : point;
+  return deformed ? currentVertexDeformation()(point) : point;
 }
 
 function drawLine(context, canvasElement, a, b, { deformed = false, stroke = 'rgba(121,150,174,.30)', width = 1 } = {}) {
@@ -615,6 +645,14 @@ function renderGeometryLab() {
   $('deformOut').value = Math.round(Number(lab.deformBlend.value) * 100) + '%';
   $('rndOut').value = Number(lab.rndAmplitude.value).toFixed(3);
   $('smoothOut').value = Math.round(Number(lab.smoothingWeight.value) * 100) + '%';
+  $('influenceOut').value = Number(lab.influenceMagnitude.value).toFixed(3);
+  $('thresholdOut').value = Number(lab.influenceThreshold.value).toFixed(3);
+  $('complianceOut').value = Number(lab.influenceCompliance.value).toFixed(2);
+  const impact = currentImpact();
+  $('impactGate').textContent = impact.result.active
+    ? `ACTIVE · excess=${impact.result.excess.toFixed(3)}`
+    : 'BLOCKED';
+  $('impactOffset').textContent = '[' + impact.result.offset.map(value => value.toFixed(3)).join(', ') + ']';
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
     ? 'REFINE'

@@ -495,3 +495,8 @@ export {
   fractalRingVertexOffset
 } from './rings/geometry-overrides.mjs';
 
+export {
+  evaluateGeometryInfluence,
+  geometryInfluenceCreatesOverride
+} from './geometry/influence-threshold.mjs';
+

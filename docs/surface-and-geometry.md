@@ -266,3 +266,38 @@ Smoothing target должен определяться из canonical procedural
 Это позволяет редактору объяснять, **почему именно эта вершина находится в данной точке**.
 
 Experiment Studio использует тот же pipeline для proven patches. Ползунки procedural RND amplitude и boundary smoothing меняют только deformed view; reference topology и interface extraction остаются неизменными.
+
+## 14. Порог влияния на persistent geometry
+
+Сам факт воздействия не означает изменение формы материи.
+
+Для geometry deformation E1 вводит отдельный порог `T`:
+
+```text
+|I| ≤ T
+    → geometry override = 0
+    → FractalRing по geometry-причине не нужен
+
+|I| > T
+    → excess = |I| - T
+    → offset = direction(I) · excess · compliance
+```
+
+Это непрерывная модель в точке порога: при `|I| = T` displacement остаётся нулевым.
+
+Порог относится именно к **persistent изменению формы**. Подпороговая сила может отдельно участвовать в динамике rigid/composite body, например ветер может толкать объект, но не должна автоматически навсегда сдвигать его material vertices.
+
+В E1 подпороговые воздействия не накапливаются в скрытую fatigue-state. Усталость, пластичность, упругость и накопление повреждений должны моделироваться отдельными требованиями, если будут введены.
+
+Порог и compliance являются параметрами алгоритма/материала, а не renderer. `evaluateGeometryInfluence` возвращает:
+
+- исходную magnitude;
+- threshold;
+- excess;
+- compliance;
+- флаг `active`;
+- effective geometry offset.
+
+Persistent WorldStore должен получать только результирующий geometry override после прохождения этого gate, а не историю подпороговых воздействий.
+
+Experiment Studio показывает `BLOCKED / ACTIVE`, excess и effective offset и применяет active offset к одной canonical shared vertex выбранной грани.

@@ -31,6 +31,10 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(html, /id="showTriangulation"/);
   assert.match(html, /id="rndAmplitude"/);
   assert.match(html, /id="smoothingWeight"/);
+  assert.match(html, /id="influenceMagnitude"/);
+  assert.match(html, /id="influenceThreshold"/);
+  assert.match(html, /id="influenceCompliance"/);
+  assert.match(html, /id="impactGate"/);
   assert.match(html, /type="module" src="\.\/app\.js"/);
 
   assert.match(app, /from '\.\/src\/fractal-matter\.mjs'/);
@@ -43,6 +47,9 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(app, /triangulateSurfacePatchGeometry/);
   assert.match(app, /makeFractalVertexDeformation/);
   assert.match(app, /currentVertexDeformation/);
+  assert.match(app, /evaluateGeometryInfluence/);
+  assert.match(app, /currentImpact/);
+  assert.doesNotMatch(app, /blendedDeformation/);
   assert.match(app, /selectedPoint/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /OUTSIDE → EMPTY/);
@@ -72,6 +79,8 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
     assert.equal(typeof module.triangulateSurfacePatchGeometry, 'function');
     assert.equal(typeof module.makeFractalVertexDeformation, 'function');
     assert.equal(typeof module.setFractalRingVertexOffset, 'function');
+    assert.equal(typeof module.evaluateGeometryInfluence, 'function');
+    assert.equal(typeof module.geometryInfluenceCreatesOverride, 'function');
     assert.equal(typeof module.cubeToSphereDeformation, 'function');
   } finally {
     await rm(temp, { recursive: true, force: true });

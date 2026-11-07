@@ -189,6 +189,21 @@
           <input id="smoothingWeight" type="range" min="0" max="1" value="0.35" step="0.05">
         </label>
 
+        <label>
+          <span>Influence magnitude <output id="influenceOut">0.050</output></span>
+          <input id="influenceMagnitude" type="range" min="0" max="0.30" value="0.05" step="0.005">
+        </label>
+
+        <label>
+          <span>Geometry threshold <output id="thresholdOut">0.100</output></span>
+          <input id="influenceThreshold" type="range" min="0" max="0.30" value="0.10" step="0.005">
+        </label>
+
+        <label>
+          <span>Compliance <output id="complianceOut">1.00</output></span>
+          <input id="influenceCompliance" type="range" min="0" max="2" value="1" step="0.05">
+        </label>
+
         <label class="check">
           <input id="showTriangulation" type="checkbox" checked>
           <span>Показывать triangulation proven patches</span>
@@ -207,6 +222,8 @@
           <div><span>Proven interface patches</span><strong id="presentPatches">—</strong></div>
           <div><span>Unresolved patches</span><strong id="unresolvedPatches">—</strong></div>
           <div><span>Visited face pairs</span><strong id="visitedPairs">—</strong></div>
+          <div><span>Impact gate</span><strong id="impactGate">—</strong></div>
+          <div><span>Effective offset</span><strong id="impactOffset">—</strong></div>
           <div><span>Root decision</span><strong id="interfaceDecision">—</strong></div>
         </div>
 

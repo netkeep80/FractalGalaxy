@@ -103,3 +103,11 @@ Renderer может виртуально запрашивать более гл�
 - `tests/sparse-fractalring.test.mjs` и `tests/world-store.test.mjs` — минимальные поведенческие проверки.
 
 Существующий E0 API остаётся доступен через `src/fractal-matter.mjs`.
+
+### Порог геометрической индивидуализации
+
+Само наличие воздействия не создаёт FractalRing.
+
+Если geometry influence после применения material/algorithm threshold имеет нулевой результирующий offset, область остаётся процедурно воспроизводимой по geometry-признаку и не требует materialization.
+
+Только ненулевой persistent geometry override является причиной индивидуализации по этому основанию.
