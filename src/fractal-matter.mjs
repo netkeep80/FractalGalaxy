@@ -500,3 +500,8 @@ export {
   geometryInfluenceCreatesOverride
 } from './geometry/influence-threshold.mjs';
 
+
+export {
+  worldGeometryOffsets, applyVertexInfluence, splitGeometryFractalRing,
+  ringWorldTranslation, ringVertexWorldPosition, reparentRingPreservingGeometry
+} from './rings/interaction-hierarchy.mjs';

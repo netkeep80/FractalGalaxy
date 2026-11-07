@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-006
+normative: "### FG-STUDIO-006 — Русский и английский интерфейс\n\nStudio должен предоставлять полные русскую и английскую локализации наблюдаемых пользовательских элементов, включая элементы управления, названия представлений, легенды и диагностику. Канонические адреса, коды сред, ключи и сериализация не должны изменяться при локализации."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

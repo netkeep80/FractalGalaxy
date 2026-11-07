@@ -1,0 +1,20 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-004
+normative: "### FG-STUDIO-004 — Инспекция выбранной ячейки\n\nПри изменении выделения Studio должен отображать в отдельном инспекторе уровень, адрес ячейки, выбранную грань, её соседа и результат классификации effective media. При изменении камеры идентификатор выделения и показания о материале должны оставаться прежними."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-001
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"

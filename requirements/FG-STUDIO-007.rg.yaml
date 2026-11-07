@@ -1,0 +1,28 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-007
+normative: "### FG-STUDIO-007 — Переключение языка без потери контекста\n\nЕсли пользователь выбирает Русский или English, Studio должен немедленно переключать локализуемые подписи без перезагрузки и без изменения выделения, камеры, параметров генерации либо материального состояния. Явный выбор языка должен сохраняться между открытиями. При первом открытии предпочтителен поддерживаемый язык браузера; при отсутствии совпадения используется русский."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-006
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-i18n.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-i18n.test.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"

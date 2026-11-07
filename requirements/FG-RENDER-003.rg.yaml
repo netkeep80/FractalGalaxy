@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-003
+normative: "### FG-RENDER-003 — Сборка доказанной поверхности\n\nДвижок должен поддерживать получение производного набора геометрических элементов интерфейса для заданной конечной области из подтверждённых материальных границ. Неразрешённые участки не должны автоматически триангулироваться или выдаваться за физическую поверхность."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

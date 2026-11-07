@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-008
+normative: "### FG-STUDIO-008 — Исследование поверхности материи\n\nПользователь должен иметь возможность визуально исследовать доказанные интерфейсы сред, отличать неопределённые области и сопоставлять reference topology с деформированным геометрическим представлением."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

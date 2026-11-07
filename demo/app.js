@@ -23,8 +23,23 @@ import {
   triangulateSurfacePatchGeometry,
   makeFractalVertexDeformation,
   evaluateGeometryInfluence,
-  referenceVertexKey
+  referenceVertexKey,
+  makeMemoryWorldStore,
+  ringRecordState,
+  ringIdsForPhysicalParent,
+  validateWorldStore,
+  makeProceduralRef,
+  applyVertexInfluence,
+  splitGeometryFractalRing,
+  ringVertexWorldPosition,
+  worldGeometryOffsets,
+  worldStoreStats,
+  geometryVertexOffsets
 } from './src/fractal-matter.mjs';
+import {editableFaceVertices,cameraPlaneDrag,pickFaceVertex} from './studio-vertex-editor.mjs';
+import {createStudioHierarchyUI} from './studio-tree.mjs';
+import { pickReferenceCube, centerOfPath, parentPath, childPath, formatPath } from './studio-picking.mjs';
+import { localeFor, translate, validateTranslations } from './studio-i18n.mjs';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -52,12 +67,16 @@ const lab = {
   influenceMagnitude: $('influenceMagnitude'),
   influenceThreshold: $('influenceThreshold'),
   influenceCompliance: $('influenceCompliance'),
-  showTriangulation: $('showTriangulation')
+  showTriangulation: $('showTriangulation'),
+  showReferenceGrid: $('showReferenceGrid')
 };
 
 $('version').textContent = E0_VERSION;
 
 let selectedPoint = [0, 0, 0];
+let activeLocale = localeFor({ saved: readSavedLanguage(), languages: navigator.languages ?? [navigator.language] });
+function readSavedLanguage() { try { return localStorage.getItem('fractalgalaxy.locale'); } catch { return null; } }
+const tr = key => translate(activeLocale, key);
 
 const ownerColors = {
   left: [67, 213, 255],
@@ -186,6 +205,25 @@ function renderMaterialView() {
   }
   ctx.stroke();
 
+  // 2D and 3D views share one canonical selected cell.
+  const path = addressForPoint(selectedPoint, Number(lab.probeDepth.value)).path;
+  const bounds = octreeBoundsForPath(path);
+  const px = (bounds.min[0] + 1) * canvas.width / 2;
+  const py = (1 - bounds.max[1]) * canvas.height / 2;
+  const w = (bounds.max[0] - bounds.min[0]) * canvas.width / 2;
+  const h = (bounds.max[1] - bounds.min[1]) * canvas.height / 2;
+  ctx.strokeStyle = 'rgba(255,235,144,.96)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px + 1, py + 1, Math.max(0,w-2), Math.max(0,h-2));
+  const markerX = (selectedPoint[0] + 1) * canvas.width / 2;
+  const markerY = (1 - selectedPoint[1]) * canvas.height / 2;
+  ctx.strokeStyle = 'rgba(255,255,255,.95)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(markerX-6, markerY); ctx.lineTo(markerX+6, markerY);
+  ctx.moveTo(markerX, markerY-6); ctx.lineTo(markerX, markerY+6);
+  ctx.stroke();
+
   updateLegend();
   updateMasses(model);
   inspect(model, selectedPoint);
@@ -196,15 +234,15 @@ function updateLegend() {
   const legend = $('legend');
   if (controls.mode.value === 'owners') {
     legend.innerHTML = [
-      ['#43d5ff', 'left: x < 0'],
-      ['#ffaf4a', 'right-bottom: x ≥ 0, y < 0'],
-      ['#e15cff', 'right-top: x ≥ 0, y ≥ 0'],
-      ['#06101a', 'EMPTY']
+      ['#43d5ff', tr('studio.legend.left')],
+      ['#ffaf4a', tr('studio.legend.rightBottom')],
+      ['#e15cff', tr('studio.legend.rightTop')],
+      ['#06101a', tr('studio.media.EMPTY')]
     ].map(([c,t]) => `<span style="--swatch:${c}">${t}</span>`).join('');
   } else {
     legend.innerHTML = [
-      ['#58d7a9', 'SOLID'],
-      ['#06101a', 'EMPTY']
+      ['#58d7a9', tr('studio.media.SOLID')],
+      ['#06101a', tr('studio.media.EMPTY')]
     ].map(([c,t]) => `<span style="--swatch:${c}">${t}</span>`).join('');
   }
 }
@@ -227,7 +265,8 @@ function updateMasses(model) {
 }
 
 function describeMatter(value) {
-  if (value.kind === 'SOLID') return `SOLID(${value.materialId}, ρ=${value.density})`;
+  if (value.kind === 'SOLID') return `${tr('studio.media.SOLID')}(${value.materialId}, ρ=${value.density})`;
+  if (value.kind === 'EMPTY') return tr('studio.media.EMPTY');
   return value.kind;
 }
 
@@ -250,8 +289,9 @@ canvas.addEventListener('click', event => {
   const y = 1 - 2 * ((event.clientY - rect.top) / rect.height);
   const z = Number(controls.zSlice.value);
   selectedPoint = [x, y, z];
-  inspect(buildModel(), selectedPoint);
-  renderGeometryLab();
+  // A selection changes both inspector and 2D selection overlay.
+  // Re-render the owning view instead of updating only the downstream 3D scene.
+  renderMaterialView();
 });
 
 for (const input of Object.values(controls)) {
@@ -276,6 +316,13 @@ const referenceCanvas = $('referenceView');
 const deformedCanvas = $('deformedView');
 const camera = { yaw: -0.66, pitch: 0.46, zoom: 1 };
 let drag = null;
+let studioUi = null;
+let studioTreeUi = null;
+// E0 material Split is not a FractalRing overlay. No persistent rings are invented for display.
+let demoWorldStore = makeMemoryWorldStore({resident:'none'});
+let selectedVertexReference=null;
+let activeImpactRingId=null;
+let lastInfluenceResult=null;
 let currentSurfaceExtraction = { present: [], unresolved: [], stats: { visitedPairs: 0 } };
 
 function classificationFor(value) {
@@ -283,21 +330,23 @@ function classificationFor(value) {
 }
 
 function mediumLabel(medium) {
-  if (medium === 'EMPTY') return 'EMPTY';
+  if (medium === 'EMPTY') return tr('studio.media.EMPTY');
   const match = /^SOLID:([^:]+):(.+)$/.exec(medium ?? '');
-  return match ? `${match[1]} ρ=${match[2]}` : String(medium);
+  if (!match) return String(medium);
+  const id = match[1].toUpperCase();
+  return `${id === 'ROCK' || id === 'ICE' ? tr('studio.media.' + id) : match[1]} ρ=${match[2]}`;
 }
 
 function classificationLabel(result) {
   const classification = result.classification ?? result;
   return classification.kind === 'HOMOGENEOUS'
-    ? `HOMOGENEOUS · ${mediumLabel(classification.medium)}`
-    : 'MIXED';
+    ? `${tr('studio.classification.homogeneous')} · ${mediumLabel(classification.medium)}`
+    : tr('studio.classification.mixed');
 }
 
 function refinementLabel(result) {
-  if (!result?.stats) return 'manual';
-  return `nodes=${result.stats.inspectedNodes}, depth=${result.stats.deepestDepth}`;
+  if (!result?.stats) return tr('studio.refinement.manual');
+  return `${tr('studio.refinement.nodes')}=${result.stats.inspectedNodes}, ${tr('studio.refinement.depth')}=${result.stats.deepestDepth}`;
 }
 
 function currentProbeContext() {
@@ -356,18 +405,37 @@ function currentImpact() {
   return { reference, result };
 }
 
+function studioGeometrySource(path=currentProbeContext().pathA) {
+  return makeProceduralRef({
+    rootId:'studio-e0',address:path,
+    algorithmId:'e0',algorithmVersion:E0_VERSION
+  });
+}
+function persistentVertexOffsets() {
+  return worldGeometryOffsets(demoWorldStore,studioGeometrySource());
+}
+function plusOffsets(offsets,reference,delta) {
+  const key=referenceVertexKey(reference);
+  const existing=offsets[key]??[0,0,0];
+  offsets[key]=existing.map((v,i)=>v+delta[i]);
+}
 function currentVertexDeformation() {
-  const impact = currentImpact();
-  const interactionOffsets = impact.result.active
-    ? { [referenceVertexKey(impact.reference)]: impact.result.offset }
-    : {};
-
+  const impact=currentImpact();
+  const interactionOffsets={...persistentVertexOffsets()};
+  if(impact.result.active)plusOffsets(interactionOffsets,impact.reference,impact.result.offset);
+  if(drag?.kind==='vertex' && drag.influence) {
+    const preview=evaluateGeometryInfluence(drag.influence,{
+      threshold:Number(lab.influenceThreshold.value),
+      compliance:Number(lab.influenceCompliance.value)
+    });
+    if(preview.active)plusOffsets(interactionOffsets,drag.reference,preview.offset);
+  }
   return makeFractalVertexDeformation({
-    baseDeformation: baseGeometryDeformation,
-    seed: parseSeed(),
-    randomAmplitude: Number(lab.rndAmplitude.value),
-    smoothingWeight: Number(lab.smoothingWeight.value),
-    smoothingTarget: ({ basePosition }) => basePosition,
+    baseDeformation:baseGeometryDeformation,
+    seed:parseSeed(),
+    randomAmplitude:Number(lab.rndAmplitude.value),
+    smoothingWeight:Number(lab.smoothingWeight.value),
+    smoothingTarget:({basePosition})=>basePosition,
     interactionOffsets
   });
 }
@@ -491,7 +559,7 @@ function drawSelectedFace(context, canvasElement, deformed) {
   drawBox(context, canvasElement, boundsA, deformed, 'rgba(92,176,211,.62)', 1.4);
   drawExtractedSurface(context, canvasElement, boundsA, axis, side, deformed);
   if (probe.boundsB) {
-    drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(255,185,88,.30)', 1);
+    drawBox(context, canvasElement, probe.boundsB, deformed, 'rgba(128,160,246,.48)', 1);
   }
 
   for (const t of [-1, 0, 1]) {
@@ -547,6 +615,55 @@ function drawAxes(context, canvasElement, deformed) {
   }
 }
 
+function drawContextHierarchy(context, canvasElement, deformed) {
+  const path = currentProbeContext().pathA;
+  for (let depth = 0; depth < path.length; depth++) {
+    const bounds = octreeBoundsForPath(path.slice(0, depth), { min:-1, max:1 });
+    drawBox(context, canvasElement, bounds, deformed,
+      `rgba(90,132,158,${(0.14 + 0.04*depth).toFixed(3)})`, 1);
+  }
+}
+
+function selectedFaceHandles() {
+  const probe=currentProbeContext();
+  return editableFaceVertices(probe.boundsA,probe.axis,probe.side,referenceVertexKey);
+}
+function drawEditableVertices(context,canvasElement) {
+  if(!$('studioVertexEdit')?.checked)return;
+  const deformation=currentVertexDeformation();
+  for(const vertex of selectedFaceHandles()){
+    const projected=rotateProject(deformation(vertex.reference),canvasElement);
+    const selected=selectedVertexReference&&referenceVertexKey(selectedVertexReference)===vertex.key;
+    context.fillStyle=selected?'#ffe3a1':'#84d8fa';
+    context.strokeStyle=selected?'#ffad4b':'#123247';
+    context.lineWidth=2;
+    context.beginPath();
+    context.arc(projected.x,projected.y,selected?7:5,0,2*Math.PI);
+    context.fill();context.stroke();
+  }
+}
+function nearestEditableVertex(canvasElement,x,y) {
+  const deformation=currentVertexDeformation();
+  return pickFaceVertex({
+    x,y,vertices:selectedFaceHandles(),
+    project:reference=>rotateProject(deformation(reference),canvasElement),
+    tolerance:14
+  });
+}
+function updateVertexInspector() {
+  const state=$('studioVertexState');
+  if(!state)return;
+  const count=worldStoreStats(demoWorldStore).persisted;
+  $('studioRingCount').textContent=String(count);
+  $('studioVertexKey').textContent=selectedVertexReference?referenceVertexKey(selectedVertexReference):'—';
+  state.textContent=lastInfluenceResult===null
+    ? tr('studio.vertex.ready')
+    : lastInfluenceResult.active?tr('studio.vertex.persisted'):tr('studio.vertex.blocked');
+  const ring=activeImpactRingId&&demoWorldStore.records[activeImpactRingId];
+  $('studioSplitRing').disabled=!ring||
+    Object.keys(geometryVertexOffsets(ring)).length===0||
+    ringIdsForPhysicalParent(demoWorldStore,activeImpactRingId).length>0;
+}
 function drawGeometry(canvasElement, deformed) {
   const context = canvasElement.getContext('2d');
   context.clearRect(0, 0, canvasElement.width, canvasElement.height);
@@ -560,15 +677,17 @@ function drawGeometry(canvasElement, deformed) {
   context.fillStyle = gradient;
   context.fillRect(0, 0, canvasElement.width, canvasElement.height);
 
-  drawCubeGrid(context, canvasElement, deformed);
+  if (lab.showReferenceGrid.checked) drawCubeGrid(context, canvasElement, deformed);
+  else drawContextHierarchy(context, canvasElement, deformed);
   drawSelectedFace(context, canvasElement, deformed);
   drawAxes(context, canvasElement, deformed);
+  if(deformed)drawEditableVertices(context,canvasElement);
 }
 
 function describeInterface(result) {
-  if (result.kind === 'NONE') return `NONE · ${result.medium}`;
-  if (result.kind === 'PRESENT') return `PRESENT · ${result.leftMedium} ↔ ${result.rightMedium}`;
-  return 'REFINE · volume is MIXED';
+  if (result.kind === 'NONE') return `${tr('studio.interface.none')} · ${mediumLabel(result.medium)}`;
+  if (result.kind === 'PRESENT') return `${tr('studio.interface.present')} · ${mediumLabel(result.leftMedium)} ↔ ${mediumLabel(result.rightMedium)}`;
+  return tr('studio.interface.refine');
 }
 
 function renderGeometryLab() {
@@ -630,11 +749,11 @@ function renderGeometryLab() {
   lab.mediumB.disabled = live;
   $('probeDepthOut').value = String(probe.depth);
   $('selectedCell').textContent = '[' + pathA.join(',') + ']';
-  $('neighborCell').textContent = pathB ? '[' + pathB.join(',') + ']' : 'OUTSIDE → EMPTY';
+  $('neighborCell').textContent = pathB ? '[' + pathB.join(',') + ']' : `${tr('studio.outside')} → ${tr('studio.media.EMPTY')}`;
   $('classificationA').textContent = classificationLabel(aResult);
   $('classificationB').textContent = classificationLabel(bResult);
   $('refinementA').textContent = refinementLabel(aResult);
-  $('refinementB').textContent = bResult.outsideDomain ? 'outside domain' : refinementLabel(bResult);
+  $('refinementB').textContent = bResult.outsideDomain ? tr('studio.outside') : refinementLabel(bResult);
   $('incidentA').textContent = '[' + incidentA.join(', ') + ']';
   $('incidentB').textContent = '[' + incidentB.join(', ') + ']';
   $('surfacePatches').textContent = String(patches.length);
@@ -650,8 +769,8 @@ function renderGeometryLab() {
   $('complianceOut').value = Number(lab.influenceCompliance.value).toFixed(2);
   const impact = currentImpact();
   $('impactGate').textContent = impact.result.active
-    ? `ACTIVE · excess=${impact.result.excess.toFixed(3)}`
-    : 'BLOCKED';
+    ? `${tr('studio.impact.active')} · ${tr('studio.impact.excess')}=${impact.result.excess.toFixed(3)}`
+    : tr('studio.impact.blocked');
   $('impactOffset').textContent = '[' + impact.result.offset.map(value => value.toFixed(3)).join(', ') + ']';
 
   const finalKind = currentSurfaceExtraction.unresolved.length > 0
@@ -660,11 +779,14 @@ function renderGeometryLab() {
       ? 'PRESENT'
       : 'NONE';
   const badge = $('interfaceBadge');
-  badge.textContent = finalKind;
+  badge.dataset.kind = finalKind;
+  badge.textContent = tr('studio.status.' + finalKind);
   badge.className = 'interface-badge ' + finalKind.toLowerCase();
 
   drawGeometry(referenceCanvas, false);
   drawGeometry(deformedCanvas, true);
+  syncStudioSelection(probe);
+  updateVertexInspector();
 }
 
 for (const input of Object.values(lab)) {
@@ -672,27 +794,93 @@ for (const input of Object.values(lab)) {
 }
 
 function attachCameraControls(canvasElement) {
-  canvasElement.addEventListener('pointerdown', event => {
+  canvasElement.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;
+    const rect=canvasElement.getBoundingClientRect();
+    if(canvasElement===deformedCanvas && $('studioVertexEdit')?.checked){
+      const hit=nearestEditableVertex(canvasElement,
+        (event.clientX-rect.left)*canvasElement.width/rect.width,
+        (event.clientY-rect.top)*canvasElement.height/rect.height);
+      if(hit){
+        canvasElement.setPointerCapture(event.pointerId);
+        selectedVertexReference=[...hit.reference];
+        drag={kind:'vertex',id:event.pointerId,reference:[...hit.reference],
+          source:studioGeometrySource(),startX:event.clientX,startY:event.clientY,
+          influence:[0,0,0],moved:false};
+        renderGeometryLab();
+        return;
+      }
+    }
     canvasElement.setPointerCapture(event.pointerId);
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    drag={kind:'camera',id:event.pointerId,startX:event.clientX,startY:event.clientY,
+      x:event.clientX,y:event.clientY,moved:false};
   });
 
-  canvasElement.addEventListener('pointermove', event => {
-    if (!drag || drag.id !== event.pointerId) return;
-    const dx = event.clientX - drag.x;
-    const dy = event.clientY - drag.y;
-    drag.x = event.clientX;
-    drag.y = event.clientY;
-    camera.yaw += dx * 0.01;
-    camera.pitch = Math.max(-1.35, Math.min(1.35, camera.pitch + dy * 0.01));
+  canvasElement.addEventListener('pointermove',event=>{
+    if(!drag || drag.id!==event.pointerId)return;
+    if(drag.kind==='vertex'){
+      const rect=canvasElement.getBoundingClientRect();
+      const dx=(event.clientX-drag.startX)*canvasElement.width/rect.width;
+      const dy=(event.clientY-drag.startY)*canvasElement.height/rect.height;
+      drag.influence=cameraPlaneDrag(dx,dy,camera,canvasElement.width,canvasElement.height);
+      drag.moved=Math.hypot(dx,dy)>0;
+      renderGeometryLab();
+      return;
+    }
+    if(Math.hypot(event.clientX-drag.startX,event.clientY-drag.startY)>5)drag.moved=true;
+    if(!drag.moved)return;
+    const dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+    drag.x=event.clientX;drag.y=event.clientY;
+    camera.yaw+=dx*.01;
+    camera.pitch=Math.max(-1.35,Math.min(1.35,camera.pitch+dy*.01));
     renderGeometryLab();
   });
 
-  const end = event => {
-    if (drag?.id === event.pointerId) drag = null;
-  };
-  canvasElement.addEventListener('pointerup', end);
-  canvasElement.addEventListener('pointercancel', end);
+  canvasElement.addEventListener('pointerup',event=>{
+    if(!drag || drag.id!==event.pointerId)return;
+    const completed=drag;
+    drag=null;
+    if(completed.kind==='vertex'){
+      if(completed.moved){
+        const outcome=applyVertexInfluence(demoWorldStore,{
+          source:completed.source,reference:completed.reference,
+          influence:completed.influence,
+          threshold:Number(lab.influenceThreshold.value),
+          compliance:Number(lab.influenceCompliance.value)
+        });
+        demoWorldStore=outcome.store;
+        lastInfluenceResult=outcome.result;
+        if(outcome.updated.length){
+          activeImpactRingId=outcome.created[0]??outcome.updated[0];
+          studioTreeUi?.onStoreChanged({source:completed.source,
+            ringId:activeImpactRingId,
+            physicalParentId:demoWorldStore.records[activeImpactRingId]?.physicalParentId});
+          studioTreeUi?.open('impact');
+        }
+      }
+      renderGeometryLab();
+      return;
+    }
+    const wasClick=!completed.moved&&
+      Math.hypot(event.clientX-completed.startX,event.clientY-completed.startY)<=5;
+    if(wasClick && canvasElement===referenceCanvas){
+      const rect=canvasElement.getBoundingClientRect();
+      const hit=pickReferenceCube({
+        x:(event.clientX-rect.left)*canvasElement.width/rect.width,
+        y:(event.clientY-rect.top)*canvasElement.height/rect.height,
+        width:canvasElement.width,height:canvasElement.height,camera
+      });
+      if(hit){
+        const path=addressForPoint(hit.inside,Number(lab.probeDepth.value)).path;
+        selectStudioPath(path,hit.axis,hit.side);
+      }
+    }
+  });
+  canvasElement.addEventListener('pointercancel',event=>{
+    if(drag?.id===event.pointerId){
+      drag=null;renderGeometryLab();
+    }
+  });
 
   canvasElement.addEventListener('wheel', event => {
     event.preventDefault();
@@ -711,4 +899,296 @@ $('resetCamera').addEventListener('click', () => {
   renderGeometryLab();
 });
 
+function createStudioWorkspace() {
+  const grid = document.querySelector('.lab-grid');
+  const referencePanel = referenceCanvas.closest('.geometry-view');
+  const deformedPanel = deformedCanvas.closest('.geometry-view');
+  const views = document.createElement('section');
+  views.className = 'studio-views';
+  views.dataset.mode = 'reference';
+  views.innerHTML = `
+    <div class="studio-toolbar">
+      <div class="studio-view-modes" role="group" aria-label="Viewport mode">
+        <button type="button" data-view="reference">Каркас</button>
+        <button type="button" data-view="deformed">Деформация</button>
+        <button type="button" data-view="split">Сравнение</button>
+      </div>
+      <label class="studio-language"><span>Язык интерфейса</span>
+        <select id="studioLanguage" aria-label="Язык интерфейса"><option value="ru">Русский</option><option value="en">English</option></select>
+      </label>
+    </div>
+    <div class="studio-vertex-toolbar">
+      <label><input type="checkbox" id="studioVertexEdit">
+        <span id="studioVertexEditLabel">Редактировать вершины</span></label>
+      <button type="button" id="studioSplitRing" disabled>Разделить кольцо</button>
+      <span id="studioVertexState" role="status"></span>
+    </div>
+    <div class="studio-viewports"></div>
+    <p class="studio-picking-help" id="studioPickingHelp"></p>
+  `;
+  grid.insertBefore(views, referencePanel);
+  const viewports = views.querySelector('.studio-viewports');
+  viewports.append(referencePanel, deformedPanel);
+
+  const inspector = document.createElement('section');
+  inspector.className = 'panel studio-inspector';
+  inspector.innerHTML = `
+    <h3 id="studioInspectorHeading">Инспектор</h3>
+    <dl class="studio-selection">
+      <div><dt id="studioLevelLabel">Уровень</dt><dd id="studioLevel">—</dd></div>
+      <div><dt id="studioPathLabel">Octree-адрес</dt><dd id="studioPath">—</dd></div>
+      <div><dt id="studioFaceLabel">Грань</dt><dd id="studioFace">—</dd></div>
+    </dl>
+    <nav id="studioBreadcrumbs" class="studio-breadcrumbs" aria-label="Octree breadcrumb"></nav>
+    <div class="studio-navigation">
+      <button type="button" id="studioParent">↑ Родитель</button>
+      <label><span id="studioChildLabel">Дочерняя область</span>
+        <select id="studioChildOctant" aria-label="Child octant">
+          ${Array.from({length:8}, (_,i)=>`<option value="${i}">${i}</option>`).join('')}
+        </select>
+      </label>
+      <button type="button" id="studioChildButton" aria-label="Enter selected octant">↓</button>
+    </div>
+    <div class="studio-vertex-readout">
+      <span id="studioVertexKeyLabel">Вершина</span>
+      <output id="studioVertexKey">—</output>
+      <span id="studioRingCountLabel">Колец</span>
+      <output id="studioRingCount">0</output>
+    </div>
+    <h4 id="studioDiagnosticsHeading">Состояние</h4>
+  `;
+  inspector.append(document.querySelector('.lab-readout'));
+  grid.append(inspector);
+  const treeMount=document.createElement('section');
+  treeMount.className='studio-tree-widget';
+  inspector.insertBefore(treeMount,$('studioDiagnosticsHeading'));
+  studioTreeUi=createStudioHierarchyUI({
+    mount:treeMount,translate:tr,getLocale:()=>activeLocale,
+    getSelectedPath:()=>currentProbeContext().pathA,
+    getSelectedOwner:()=>ownerAt(buildModel(),selectedPoint).name,
+    getSplitModel:buildModel,
+    getWorldStore:()=>demoWorldStore,
+    core:{ringRecordState,ringIdsForPhysicalParent,validateWorldStore},
+    onSelectRing:id=>{activeImpactRingId=id;updateVertexInspector();},
+    onSelectOctree:path=>selectStudioPath(path),
+    onSelectSplit:owner=>{
+      // Split leaf means a currently materialized owner, not merely the XY region.
+      // For this E0 height fixture z=-0.75 is below the entire permitted height
+      // interval (including Γ alpha_neighbor in [-8,8]); it is also outside D[7].
+      const z=-0.75;
+      selectedPoint=owner==='left'?[-0.5,0,z]:owner==='rb'?[0.5,-0.5,z]:[0.5,0.5,z];
+      controls.zSlice.value=String(z);
+      controls.mode.value='owners';
+      renderMaterialView();
+    }
+  });
+
+  const buttons = [...views.querySelectorAll('[data-view]')];
+  const setMode = mode => {
+    views.dataset.mode = mode;
+    for (const button of buttons) {
+      button.setAttribute('aria-pressed', String(button.dataset.view === mode));
+    }
+  };
+  for (const button of buttons) button.addEventListener('click', () => setMode(button.dataset.view));
+  setMode('reference');
+  $('studioVertexEdit').addEventListener('change',()=>{
+    if($('studioVertexEdit').checked)setMode('deformed');
+    renderGeometryLab();
+  });
+  $('studioSplitRing').addEventListener('click',()=>{
+    if(!activeImpactRingId || !demoWorldStore.records[activeImpactRingId])return;
+    const source=demoWorldStore.records[activeImpactRingId].source;
+    const prior=worldGeometryOffsets(demoWorldStore,source);
+    const result=splitGeometryFractalRing(demoWorldStore,activeImpactRingId);
+    const next=worldGeometryOffsets(result.store,source);
+    // A split is forbidden from altering any canonical offset.
+    for(const key of Object.keys(prior)){
+      if(JSON.stringify(prior[key])!==JSON.stringify(next[key]))throw Error('vertex changed during ring split: '+key);
+    }
+    demoWorldStore=result.store;
+    // Expand every affected source branch, not only the parent prefix.
+    // Source/impact trees remain sparse and display only records already in WorldStore.
+    for(const id of result.created) {
+      studioTreeUi?.onStoreChanged({source:demoWorldStore.records[id].source});
+    }
+    studioTreeUi?.onStoreChanged({source,ringId:activeImpactRingId,physicalParentId:activeImpactRingId});
+    studioTreeUi?.open('physical');
+    renderGeometryLab();
+  });
+
+  $('studioParent').addEventListener('click', () => {
+    const parent = parentPath(currentProbeContext().pathA);
+    if (parent) selectStudioPath(parent);
+  });
+  $('studioChildButton').addEventListener('click', () => {
+    const next = childPath(currentProbeContext().pathA, Number($('studioChildOctant').value));
+    if (next) selectStudioPath(next);
+  });
+  $('studioBreadcrumbs').addEventListener('click', event => {
+    const button = event.target.closest('button[data-depth]');
+    if (!button) return;
+    const path = currentProbeContext().pathA.slice(0, Number(button.dataset.depth));
+    selectStudioPath(path);
+  });
+  $('studioLanguage').value = activeLocale;
+  $('studioLanguage').addEventListener('change', event => {
+    activeLocale = event.target.value;
+    try { localStorage.setItem('fractalgalaxy.locale', activeLocale); } catch { /* private mode */ }
+    applyStudioLocale();
+    renderMaterialView();
+  });
+  return { views, inspector };
+}
+
+function selectStudioPath(path, axis = lab.axis.value, side = Number(lab.side.value)) {
+  const center = centerOfPath(path);
+  selectedPoint = center;
+  lab.probeDepth.value = String(path.length);
+  lab.axis.value = axis;
+  lab.side.value = String(side);
+  controls.zSlice.value = String(center[2]);
+  renderMaterialView();
+}
+
+function syncStudioSelection(probe) {
+  if (!studioUi) return;
+  $('studioLevel').textContent = String(probe.depth);
+  $('studioPath').textContent = formatPath(probe.pathA);
+  $('studioFace').textContent = probe.axis.toUpperCase() + (probe.side > 0 ? '+' : '−');
+  const parent = parentPath(probe.pathA);
+  $('studioParent').disabled = parent === null;
+  $('studioChildButton').disabled = probe.depth >= 4;
+  $('studioChildOctant').disabled = probe.depth >= 4;
+  const nav = $('studioBreadcrumbs');
+  nav.replaceChildren();
+  for (let depth = 0; depth <= probe.depth; depth++) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.depth = String(depth);
+    button.textContent = depth === 0 ? tr('studio.root') : String(probe.pathA[depth - 1]);
+    button.setAttribute('aria-current', String(depth === probe.depth));
+    nav.append(button);
+  }
+  studioTreeUi?.sync();
+}
+
+function replaceVisibleText(element, value) {
+  if (!element) throw new Error('missing localized Studio element');
+  // Dynamic outputs keep their nodes; long descriptions replace all old-language
+  // fragments rather than leaving stale markup from the previous locale.
+  if (!element.querySelector('output')) {
+    element.textContent = value;
+    return;
+  }
+  const first = [...element.childNodes].find(node => node.nodeType === 3);
+  if (first) first.nodeValue = value + ' ';
+  else element.prepend(document.createTextNode(value + ' '));
+}
+
+function applyStudioLocale() {
+  validateTranslations();
+  document.documentElement.lang = activeLocale;
+  document.title = 'FractalGalaxy — ' + tr('studio.workspace');
+  const direct = [
+    ['studio.material', '.controls h2'],
+    ['studio.slice', '.viewport-head h2'],
+    ['studio.point', '.inspector h2'],
+    ['studio.mass', '.inspector h2:nth-of-type(2)'],
+    ['studio.heading', '.section-heading h2'],
+    ['studio.subtitle', '.section-heading p'],
+    ['studio.interface', '.lab-controls h3'],
+    ['studio.reference', '#referenceView', '.view-label strong'],
+    ['studio.reference.help', '#referenceView', '.view-label span'],
+    ['studio.deformed', '#deformedView', '.view-label strong'],
+    ['studio.deformed.help', '#deformedView', '.view-label span'],
+    ['studio.cameraReset', '#resetCamera'],
+    ['studio.reset', '#reset'],
+    ['studio.picking.help', '#studioPickingHelp'],
+    ['studio.helpLive', '.lab-controls .note:first-of-type'],
+    ['studio.helpDrag', '.lab-controls .note:nth-of-type(2)'],
+    ['studio.e0Help', '.viewport-head p'],
+    ['studio.footer', 'footer span'],
+    ['studio.header.eyebrow', '.hero .eyebrow'],
+    ['studio.header.title', '.hero h1'],
+    ['studio.header.lede', '.hero .lede'],
+    ['studio.e1Label', '.section-heading .eyebrow'],
+    ['studio.massHelp', '.inspector .note'],
+    ['studio.footerLink', 'footer a'],
+    ['studio.inspector', '#studioInspectorHeading'],
+    ['studio.level', '#studioLevelLabel'],
+    ['studio.path', '#studioPathLabel'],
+    ['studio.face', '#studioFaceLabel'],
+    ['studio.parent', '#studioParent'],
+    ['studio.child', '#studioChildLabel'],
+    ['studio.status', '#studioDiagnosticsHeading'],
+    ['studio.language', '.studio-language span'],
+    ['studio.vertex.edit', '#studioVertexEditLabel'],
+    ['studio.vertex.split', '#studioSplitRing'],
+    ['studio.vertex.key', '#studioVertexKeyLabel'],
+    ['studio.vertex.rings', '#studioRingCountLabel']
+  ];
+  for (const [key, selector, descendant] of direct) {
+    const el = descendant
+      ? document.querySelector(selector)?.closest('.geometry-view')?.querySelector(descendant)
+      : document.querySelector(selector);
+    if (el) replaceVisibleText(el, tr(key));
+  }
+  for (const [id,key] of Object.entries({
+    seed:'studio.seed',alpha:'studio.alpha',zSlice:'studio.z',
+    fixture:'studio.fixture',editD:'studio.editD',mode:'studio.mode',
+    interfaceSource:'studio.source',probeDepth:'studio.probeDepth',
+    faceAxis:'studio.axis',faceSide:'studio.side',
+    mediumA:'studio.mediumA',mediumB:'studio.mediumB',
+    deformBlend:'studio.deform',rndAmplitude:'studio.rnd',
+    smoothingWeight:'studio.smooth',influenceMagnitude:'studio.influence',
+    influenceThreshold:'studio.threshold',influenceCompliance:'studio.compliance',
+    showTriangulation:'studio.triangulation',
+    showReferenceGrid:'studio.showGrid'
+  })) {
+    const el = $(id).closest('label').querySelector('span');
+    replaceVisibleText(el, tr(key));
+  }
+  const readoutKeys = ['cell','neighbor','a','b','refineA','refineB','octA','octB',
+    'children','proven','unresolved','visited','impact','offset','decision'];
+  const names = document.querySelectorAll('.lab-readout > div > span');
+  readoutKeys.forEach((key,i) => replaceVisibleText(names[i], tr('studio.readout.'+key)));
+  const modeOptions = controls.mode.options;
+  modeOptions[0].textContent = tr('studio.mode.matter');
+  modeOptions[1].textContent = tr('studio.mode.owners');
+  lab.source.options[0].textContent = tr('studio.source.live');
+  lab.source.options[1].textContent = tr('studio.source.manual');
+  controls.fixture.options[0].textContent = tr('studio.fixture.height');
+  controls.fixture.options[1].textContent = tr('studio.fixture.solid');
+  document.querySelectorAll('.studio-view-modes button').forEach(button => {
+    button.textContent = tr('studio.view.' + button.dataset.view);
+  });
+  document.querySelectorAll('.explain-strip div span').forEach((span,index) => {
+    replaceVisibleText(span, tr('studio.explain'+(index+1)));
+  });
+  const labels = document.querySelectorAll('.inspector dt');
+  if (labels.length >= 10) {
+    replaceVisibleText(labels[0], tr('studio.coordinate'));
+    replaceVisibleText(labels[1], tr('studio.path'));
+    replaceVisibleText(labels[2], tr('studio.generatorState'));
+    replaceVisibleText(labels[4], tr('studio.owner'));
+    replaceVisibleText(labels[5], tr('studio.beforeSplit'));
+    replaceVisibleText(labels[9], tr('studio.totalParts'));
+  }
+  $('studioLanguage').setAttribute('aria-label', tr('studio.language'));
+  $('studioVertexEdit').setAttribute('aria-label',tr('studio.vertex.edit'));
+  $('view').setAttribute('aria-label', tr('studio.slice'));
+  $('studioBreadcrumbs').setAttribute('aria-label', tr('studio.breadcrumb'));
+  $('studioChildButton').setAttribute('aria-label', tr('studio.enterChild'));
+  document.querySelector('.studio-view-modes').setAttribute('aria-label', tr('studio.viewMode'));
+  referenceCanvas.setAttribute('aria-label', tr('studio.reference'));
+  deformedCanvas.setAttribute('aria-label', tr('studio.deformed'));
+  $('interfaceBadge').setAttribute('title', tr('studio.status'));
+  const probe = currentProbeContext();
+  syncStudioSelection(probe);
+}
+
+studioUi = createStudioWorkspace();
+applyStudioLocale();
 renderMaterialView();
+

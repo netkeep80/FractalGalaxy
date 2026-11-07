@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-010
+normative: "### FG-STUDIO-010 — Поверхность пространственной области\n\nПри запросе поверхности конечной пространственной области Studio должен отображать согласованные доказанные интерфейсы нескольких соседних ячеек, а неполные либо unresolved части обозначать явно. Вывод не должен объявляться замкнутой оболочкой без доказательства."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-008
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"

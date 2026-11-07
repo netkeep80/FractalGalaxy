@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-RING-012
+normative: "### FG-RING-012 — Материализация результата редактирования\n\nПри превышении геометрического порога и появлении persistent geometry offset система должна создать FractalRing для индивидуализированной области (или обновить уже существующее кольцо). Для просмотра или подпорогового воздействия новая persistent запись не создаётся. Результатом хранения является действующее смещение, а не последовательность событий мыши."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RING-010
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-vertex-influence.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/rings/interaction-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/interaction-hierarchy.test.mjs"

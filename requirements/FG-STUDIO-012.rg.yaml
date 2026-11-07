@@ -1,0 +1,32 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-012
+normative: "### FG-STUDIO-012 — Древовидная навигация по процедурному octree\n\nStudio должен предоставлять раскрываемое древовидное представление канонической octree-иерархии от корня до поддерживаемой глубины. Раскрытие узла должно вычислять только его непосредственных восьмерых потомков без материализации FractalRing. Выбор узла должен обновлять общие 2D/3D selection и inspector; выделение из 3D/2D должно отражаться в дереве. Узлы глубже текущего максимального уровня выбора должны быть недоступны."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-003
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-hierarchy.test.mjs"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-tree.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"

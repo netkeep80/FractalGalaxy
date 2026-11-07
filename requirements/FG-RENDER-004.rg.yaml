@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-004
+normative: "### FG-RENDER-004 — Согласованность смежных участков поверхности\n\nДля смежных доказанных patches одинакового уровня общие канонические рёбра должны давать одинаковые деформированные координаты независимо от порядка вычислений. Согласование coarse/fine LOD является отдельной задачей."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-003
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
