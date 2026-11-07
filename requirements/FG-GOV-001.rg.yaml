@@ -1,6 +1,6 @@
 format: repo-guard/requirement-v1
 id: FG-GOV-001
-normative: "### FG-GOV-001 — Pinned RepoGuard на точных BASE/HEAD\n\nMUST: Проверка PR должна использовать RepoGuard v6.0.1, закреплённый точным Git commit SHA, и сравнивать точные BASE и HEAD без подмены перехода самопроверкой HEAD→HEAD."
+normative: "### FG-GOV-001 — Проверка точных ревизий RepoGuard\n\nПроверка pull request должна использовать RepoGuard 6.0.1 по точному SHA 74db97791e6da8a75287164f0d0b41579108f114, сопоставляя точные ревизии BASE и HEAD. Самопроверка HEAD→HEAD не должна выдаваться за доказательство полного перехода."
 lifecycle:
   accepted: false
   current: false
@@ -10,10 +10,6 @@ relations:
     target:
       kind: artifact
       path: ".github/workflows/repo-guard.yml"
-  - predicates: [requires]
-    target:
-      kind: artifact
-      path: "LICENSE"
   - predicates: [documents]
     target:
       kind: artifact

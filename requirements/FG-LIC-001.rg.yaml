@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-LIC-001
+normative: "### FG-LIC-001 — Сохранение существующей лицензии проекта\n\nРепозиторий должен сохранять файл LICENSE, содержащий лицензию Unlicense, присутствовавшую в исходном main; изменение условий лицензирования требует отдельного согласованного решения и не является следствием подключения RepoGuard."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "LICENSE"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/vision-and-scope.md"

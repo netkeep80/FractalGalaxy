@@ -1,0 +1,16 @@
+format: repo-guard/requirement-v1
+id: FG-KIN-001
+normative: "### FG-KIN-001 — Кинематика при отделении от жёсткого агрегата\n\nПри отделении существующего дочернего FractalRing без импульса от жёсткого агрегата система должна назначить ему линейную скорость центра масс v_i=v_K+ω_K×(c_i−c_K) и угловую скорость ω_i=ω_K в одном мировом базисе, сохраняя мировое положение материальных точек в момент перехода."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/e0-contract.md"
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/acceptance-matrix.md"
