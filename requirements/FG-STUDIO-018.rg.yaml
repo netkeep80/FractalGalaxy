@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-018
+normative: "### FG-STUDIO-018 — Выбор режима поверхности и диагностики\n\nВ Studio пользователь должен переключать режимы Surface и Debug без изменения текущей octree-ячейки, выбранной грани, камеры, материальной классификации, данных WorldStore или массовых агрегатов. Surface показывает залитую доказанную локальную поверхность; Debug показывает технические patches, quadtree и triangulation, а не заявляется готовым mesh мира."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-008
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s2-surface-rendering.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/app.js"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-browser.test.mjs"

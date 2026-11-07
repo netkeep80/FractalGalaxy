@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-RENDER-006
+normative: "### FG-RENDER-006 — Геометрическая дискретизация доказанной грани\n\nДля доказанного interface patch renderer может создать дополнительные подпатчи фиксированной ограниченной глубины для геометрической дискретизации. Эти производные квадраты и их вершины должны наследовать канонические координаты, использовать общий vertex key и не менять число или статус доказанных материальных patches. Unresolved-участки при этом запрещено триангулировать. Включение точки редактируемой вершины в сетку должно приводить к видимому геометрическому изменению после воздействия."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-RENDER-003
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/s2-surface-rendering.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/geometry/surface-mesh.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/surface-mesh.test.mjs"
