@@ -1,0 +1,83 @@
+name: Increment project version after merge
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: project-version-main
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Increment PATCH after merged PR
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Detect versioning bootstrap merge
+        id: bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git cat-file -e "${{ github.event.pull_request.base.sha }}:version.json" 2>/dev/null; then
+            echo "bump=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bump=false" >> "$GITHUB_OUTPUT"
+            echo "version.json did not exist in the pre-merge base; bootstrap version is already carried by this PR"
+          fi
+
+      - name: Configure version bot
+        if: steps.bootstrap.outputs.bump == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Increment version and push current main
+        if: steps.bootstrap.outputs.bump == 'true'
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git reset --hard origin/main
+
+            VERSION="$(node scripts/bump-version.mjs)"
+            node --test tests/project-version.test.mjs
+
+            git add version.json package.json
+            git diff --cached --quiet && {
+              echo "version bump produced no metadata change" >&2
+              exit 1
+            }
+            git commit -m "chore(version): bump project version to v${VERSION}"
+
+            if git push origin HEAD:main; then
+              echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "main changed while bumping version; retrying (${attempt}/3)" >&2
+            sleep "$((attempt * 2))"
+          done
+
+          echo "failed to push version bump after 3 attempts" >&2
+          exit 1
+
+      - name: Deploy bumped version to GitHub Pages
+        if: steps.bootstrap.outputs.bump == 'true' && steps.bump.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

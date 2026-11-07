@@ -78,7 +78,27 @@ const lab = {
   showReferenceGrid: $('showReferenceGrid')
 };
 
-$('version').textContent = E0_VERSION;
+const versionBadge=$('version');
+versionBadge.textContent=E0_VERSION;
+
+async function renderProjectVersion(){
+  try{
+    const response=await fetch('./version.json',{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    const payload=await response.json();
+    const projectVersion=payload?.version;
+    if(!/^\d+\.\d+\.\d+$/.test(projectVersion??'')){
+      throw new Error('invalid project version');
+    }
+    versionBadge.dataset.projectVersion=projectVersion;
+    versionBadge.textContent='v'+projectVersion+' · '+E0_VERSION;
+  }catch(error){
+    versionBadge.dataset.projectVersion='';
+    versionBadge.textContent=E0_VERSION;
+    versionBadge.title='Project version unavailable: '+error.message;
+  }
+}
+void renderProjectVersion();
 
 let selectedPoint = [0, 0, 0];
 let activeLocale = localeFor({ saved: readSavedLanguage(), languages: navigator.languages ?? [navigator.language] });
