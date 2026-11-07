@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RENDER-002
 normative: "### FG-RENDER-002 — Visual-only detail не изменяет материальную границу\n\nTexture, normal, lighting и иная чисто визуальная детализация могут вычисляться глубже materialized surface, но не должны самостоятельно менять авторитетное положение границы среды. Деталь, влияющая на collision, ownership, массу или material query, должна быть выражена volume/material model."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

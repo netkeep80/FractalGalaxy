@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-007
 normative: "### FG-RING-007 — Сохранение процедурного источника\n\nМатериализованный FractalRing должен сохранять стабильную ссылку на процедурный источник, достаточную для дальнейшего воспроизводимого уточнения его содержимого независимо от текущего положения объекта в физической иерархии."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

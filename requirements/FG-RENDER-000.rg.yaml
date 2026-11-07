@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RENDER-000
 normative: "### FG-RENDER-000 — Производное отображение мира\n\nОтображение, LOD и визуальная детализация должны быть производными от авторитетного процедурного и материального состояния и не должны самостоятельно изменять материю или физическую композицию."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

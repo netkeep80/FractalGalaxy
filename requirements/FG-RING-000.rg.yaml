@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-000
 normative: "### FG-RING-000 — Разреженная иерархия FractalRing\n\nСистема должна материализовывать FractalRing как разреженное персистентное индивидуализированное состояние поверх потенциального процедурного мира, не отождествляя ring с octree-ячейкой."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [derives_from]

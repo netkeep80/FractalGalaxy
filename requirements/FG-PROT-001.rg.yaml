@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-PROT-001
 normative: "### FG-PROT-001 — Исполняемый прототип E0\n\nВ pull request должен находиться небольшой исполняемый CPU-прототип ключевых идей FractalMatter/FractalRing: детерминированное процедурное уточнение, B/D/Γ и материальный запрос M, владение после Split, явные Contact/Attach/Detach и холодное Save/Load. Прототип может сознательно упрощать будущий игровой движок, но его ограничения должны быть перечислены, а ключевое поведение — покрыто запускаемыми тестами."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

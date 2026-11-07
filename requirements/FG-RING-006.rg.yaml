@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-RING-006
 normative: "### FG-RING-006 — Обычная процедурная неоднородность не создаёт Ring\n\nРазличие результатов процедурной генерации разных подрегионов само по себе не должно требовать создания FractalRing, если эти результаты полностью воспроизводимы из общего процедурного источника."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [implemented_by]

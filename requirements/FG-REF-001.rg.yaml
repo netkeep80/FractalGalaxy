@@ -2,8 +2,8 @@ format: repo-guard/requirement-v1
 id: FG-REF-001
 normative: "### FG-REF-001 — Сохранение поля при уточнении\n\nПри фиксированных B/D/Γ операция уточнения (Refine) должна сохранять значение материального поля M в каждой поддерживаемой исходной материальной координате, а не только интегральную массу и моменты. Изменение D во время этой проверки недопустимо."
 lifecycle:
-  accepted: false
-  current: false
+  accepted: true
+  current: true
   published: false
 relations:
   - predicates: [documents]
