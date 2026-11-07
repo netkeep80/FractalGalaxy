@@ -1,0 +1,24 @@
+format: repo-guard/requirement-v1
+id: FG-STUDIO-014
+normative: "### FG-STUDIO-014 — Дерево результатов E0 Split\n\nStudio должен предоставлять отдельное раскрываемое древовидное представление последовательного разделения текущего E0-материала на области left/rb/rt. Выбор листа должен переходить к точке внутри соответствующей области текущего материального поля и обновлять выбранную octree-ячейку. Дерево Split не должно обозначаться как дерево физического родительства FractalRing."
+lifecycle:
+  accepted: false
+  current: false
+  published: false
+relations:
+  - predicates: [derives_from]
+    target:
+      kind: requirement
+      id: FG-STUDIO-000
+  - predicates: [documents]
+    target:
+      kind: artifact
+      path: "docs/studio-workspace-requirements.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-hierarchy.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-hierarchy.test.mjs"
