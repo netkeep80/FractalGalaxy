@@ -25,13 +25,6 @@ function signedArea(points){
 function edgeSide(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 const clipScratchA=new Float64Array(16);
 const clipScratchB=new Float64Array(16);
-function clipIntersectionXY(ax,ay,bx,by,cx,cy,dx,dy){
-  const abx=bx-ax,aby=by-ay,cdx=dx-cx,cdy=dy-cy;
-  const denominator=abx*cdy-aby*cdx;
-  if(Math.abs(denominator)<1e-12)return [bx,by];
-  const t=((cx-ax)*cdy-(cy-ay)*cdx)/denominator;
-  return [ax+t*abx,ay+t*aby];
-}
 function separatedOnAxis(a,b,nx,ny){
   if(Math.abs(nx)+Math.abs(ny)<1e-15)return false;
   let amin=Infinity,amax=-Infinity,bmin=Infinity,bmax=-Infinity;
@@ -40,11 +33,11 @@ function separatedOnAxis(a,b,nx,ny){
     if(av<amin)amin=av;if(av>amax)amax=av;
     if(bv<bmin)bmin=bv;if(bv>bmax)bmax=bv;
   }
-  // Keep near-touching cases for the exact clipper; this is conservative.
   return amax<bmin-1e-9||bmax<amin-1e-9;
 }
 function trianglesMayOverlapArea(a,b){
-  for(const points of [a,b]){
+  for(let set=0;set<2;set++){
+    const points=set===0?a:b;
     for(let i=0;i<3;i++){
       const p=points[i],q=points[(i+1)%3];
       if(separatedOnAxis(a,b,-(q.y-p.y),q.x-p.x))return false;
@@ -52,19 +45,27 @@ function trianglesMayOverlapArea(a,b){
   }
   return true;
 }
-function interpolatedDepthXY(points,x,y){
+function depthPlane(points){
   const a=points[0],b=points[1],c=points[2];
-  const denominator=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
-  if(Math.abs(denominator)<1e-12)return null;
-  const wa=((b.y-c.y)*(x-c.x)+(c.x-b.x)*(y-c.y))/denominator;
-  const wb=((c.y-a.y)*(x-c.x)+(a.x-c.x)*(y-c.y))/denominator;
-  return wa*a.depth+wb*b.depth+(1-wa-wb)*c.depth;
+  const abx=b.x-a.x,aby=b.y-a.y,acz=b.depth-a.depth;
+  const acx=c.x-a.x,acy=c.y-a.y,bcz=c.depth-a.depth;
+  const determinant=abx*acy-acx*aby;
+  if(Math.abs(determinant)<1e-12)return null;
+  return {
+    x:a.x,y:a.y,depth:a.depth,
+    dx:(acz*acy-bcz*aby)/determinant,
+    dy:(abx*bcz-acx*acz)/determinant
+  };
 }
-// Same Sutherland-Hodgman semantics as the original object-allocating clipper,
-// but all intermediate overlap vertices live in two fixed scratch buffers.
+function depthAtPlane(plane,x,y){
+  return plane.depth+plane.dx*(x-plane.x)+plane.dy*(y-plane.y);
+}
+// Same Sutherland-Hodgman overlap semantics as the original clipper.
+// Depth interpolation uses one precomputed screen-space plane per triangle.
 function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
+  if(!a.depthPlane||!b.depthPlane)return 0;
   if(!trianglesMayOverlapArea(a.points,b.points)){
     if(counters)counters.satRejected++;
     return 0;
@@ -79,14 +80,21 @@ function projectedDepthRelation(a,b,counters=null){
   const orientation=signedArea(b.points)>=0?1:-1;
   for(let edge=0;edge<3&&count;edge++){
     const ca=b.points[edge],cb=b.points[(edge+1)%3];
+    const edgeX=cb.x-ca.x,edgeY=cb.y-ca.y;
     let outCount=0;
     let previousX=input[(count-1)*2],previousY=input[(count-1)*2+1];
-    let previousInside=orientation*((cb.x-ca.x)*(previousY-ca.y)-(cb.y-ca.y)*(previousX-ca.x))>=-1e-9;
+    let previousInside=orientation*(edgeX*(previousY-ca.y)-edgeY*(previousX-ca.x))>=-1e-9;
     for(let i=0;i<count;i++){
       const currentX=input[i*2],currentY=input[i*2+1];
-      const currentInside=orientation*((cb.x-ca.x)*(currentY-ca.y)-(cb.y-ca.y)*(currentX-ca.x))>=-1e-9;
+      const currentInside=orientation*(edgeX*(currentY-ca.y)-edgeY*(currentX-ca.x))>=-1e-9;
       if(currentInside!==previousInside){
-        const [ix,iy]=clipIntersectionXY(previousX,previousY,currentX,currentY,ca.x,ca.y,cb.x,cb.y);
+        const abx=currentX-previousX,aby=currentY-previousY;
+        const denominator=abx*edgeY-aby*edgeX;
+        let ix=currentX,iy=currentY;
+        if(Math.abs(denominator)>=1e-12){
+          const t=((ca.x-previousX)*edgeY-(ca.y-previousY)*edgeX)/denominator;
+          ix=previousX+t*abx;iy=previousY+t*aby;
+        }
         output[outCount*2]=ix;output[outCount*2+1]=iy;outCount++;
       }
       if(currentInside){
@@ -112,9 +120,7 @@ function projectedDepthRelation(a,b,counters=null){
   for(let i=0;i<=count;i++){
     const x=i<count?input[i*2]:sumX/count;
     const y=i<count?input[i*2+1]:sumY/count;
-    const ad=interpolatedDepthXY(a.points,x,y),bd=interpolatedDepthXY(b.points,x,y);
-    if(ad===null||bd===null)return 0;
-    const delta=ad-bd;
+    const delta=depthAtPlane(a.depthPlane,x,y)-depthAtPlane(b.depthPlane,x,y);
     if(Math.abs(delta)<1e-8)continue;
     const sign=Math.sign(delta);
     if(relation&&relation!==sign)return 0;
@@ -439,6 +445,7 @@ export function prepareProofTriangles(mesh,project,{deformed=false,broadPhase=tr
         maxY:Math.max(points[0].y,points[1].y,points[2].y)
       },
       depth:(points[0].depth+points[1].depth+points[2].depth)/3,
+      depthPlane:depthPlane(points),
       light:style.light,
       fill:style.fill
     };
