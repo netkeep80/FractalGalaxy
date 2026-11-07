@@ -36,6 +36,7 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
   assert.match(app, /octreeBoundsForPath/);
   assert.match(app, /extractMaterialInterface/);
   assert.match(app, /drawExtractedSurface/);
+  assert.match(app, /buildSurfacePatchGeometry/);
   assert.match(app, /selectedPoint/);
   assert.match(app, /renderGeometryLab/);
   assert.match(app, /OUTSIDE → EMPTY/);
@@ -60,6 +61,8 @@ test('GitHub Pages Studio publishes live procedural surface/geometry probing', a
     assert.equal(typeof module.classifyMaterialInterface, 'function');
     assert.equal(typeof module.extractMaterialInterface, 'function');
     assert.equal(typeof module.extractInterfacePatches, 'function');
+    assert.equal(typeof module.buildSurfacePatchGeometry, 'function');
+    assert.equal(typeof module.assertSharedEdgeGeometry, 'function');
     assert.equal(typeof module.cubeToSphereDeformation, 'function');
   } finally {
     await rm(temp, { recursive: true, force: true });

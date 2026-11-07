@@ -464,3 +464,14 @@ export {
   faceChildPairs,
   extractInterfacePatches
 } from './surface/extractor.mjs';
+
+export {
+  referenceVertexKey,
+  canonicalEdgeKey,
+  surfacePatchReferenceVertices,
+  surfacePatchEdges,
+  buildSurfacePatchGeometry,
+  sharedSurfaceEdges,
+  assertSharedEdgeGeometry
+} from './geometry/surface-patch.mjs';
+

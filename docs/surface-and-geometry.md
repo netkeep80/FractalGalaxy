@@ -145,3 +145,27 @@ face patch
 Это ещё **не mesh extraction**. Triangulation, crack-free tessellation, LOD и GPU representation являются следующими производными слоями.
 
 Web Studio рисует proven patches зелёным, unresolved — янтарным, используя один и тот же параметрический patch как в reference, так и в deformed view.
+
+## 11. Каноническая SurfacePatch geometry
+
+После доказательства interface patch ещё не является triangle mesh.
+
+`buildSurfacePatchGeometry` переводит параметрический patch в четыре канонические reference-вершины в порядке:
+
+```text
+(u0,v0) → (u1,v0) → (u1,v1) → (u0,v1)
+```
+
+и строит четыре ребра с ключами, полученными только из координат reference-вершин.
+
+Это даёт важный инвариант:
+
+> два соседних patches, построенные независимо, должны получить один и тот же canonical edge key для общей кромки.
+
+После применения одного и того же deformation `Φ` соответствующие deformed coordinates этой общей кромки также должны совпадать в пределах установленного численного контракта.
+
+Текущий E1 использует dyadic octree/quadtree coordinates, поэтому тестовый контракт для `cubeToSphereDeformation` проверяет точное совпадение (`epsilon = 0`).
+
+Этот слой всё ещё не определяет диагональ quad и не создаёт triangles. Он сначала фиксирует crack-free vertex/edge topology, чтобы последующая triangulation не могла скрыть расхождение общей геометрии.
+
+Experiment Studio теперь использует этот же `buildSurfacePatchGeometry` при рисовании reference/deformed patches; отдельного вычисления corner vertices в UI нет.

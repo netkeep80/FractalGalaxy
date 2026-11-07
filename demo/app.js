@@ -18,7 +18,8 @@ import {
   classifyMaterialRegion,
   adjacentOctreePath,
   octreeBoundsForPath,
-  extractMaterialInterface
+  extractMaterialInterface,
+  buildSurfacePatchGeometry
 } from './src/fractal-matter.mjs';
 
 const $ = id => document.getElementById(id);
@@ -387,22 +388,16 @@ function drawBox(context, canvasElement, bounds, deformed, stroke = 'rgba(118,17
   }
 }
 
-function facePatchCorners(bounds, axis, side, patch) {
-  const u0 = -1 + 2 * patch.u0;
-  const u1 = -1 + 2 * patch.u1;
-  const v0 = -1 + 2 * patch.v0;
-  const v1 = -1 + 2 * patch.v1;
-  return [
-    facePointForBounds(bounds, axis, side, u0, v0),
-    facePointForBounds(bounds, axis, side, u1, v0),
-    facePointForBounds(bounds, axis, side, u1, v1),
-    facePointForBounds(bounds, axis, side, u0, v1)
-  ];
-}
-
 function drawSurfacePatch(context, canvasElement, bounds, axis, side, patch, deformed, fill, stroke) {
-  const points = facePatchCorners(bounds, axis, side, patch)
-    .map(point => rotateProject(mapGeometry(point, deformed), canvasElement));
+  const geometry = buildSurfacePatchGeometry({
+    bounds,
+    axis,
+    side,
+    patch,
+    deformation: deformed ? point => blendedDeformation(point) : point => point
+  });
+  const sourceVertices = deformed ? geometry.deformedVertices : geometry.referenceVertices;
+  const points = sourceVertices.map(point => rotateProject(point, canvasElement));
 
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
