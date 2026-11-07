@@ -303,6 +303,8 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('S2 browser proof: local filled mesh, diagnostic mode and explicit uncertainty',async()=>{
+      // The preceding test may have persisted English; this scenario tests RU first.
+      await setControl('studioLanguage','ru');
       await setControl('probeDepth','0','input');
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
