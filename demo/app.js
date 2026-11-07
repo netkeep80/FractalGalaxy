@@ -506,7 +506,7 @@ function makeCameraProjector(canvasElement) {
     const x1=x*cy+z*sy;
     const z1=-x*sy+z*cy;
     const y1=y*cp-z1*sp;
-    const result=out??{};
+    const result=out&&typeof out==='object'?out:{};
     result.x=cx+x1*scale;
     result.y=cyCanvas-y1*scale;
     result.depth=y*sp+z1*cp;
