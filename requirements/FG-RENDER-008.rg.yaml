@@ -14,3 +14,11 @@ relations:
     target:
       kind: artifact
       path: "docs/s3-regional-surface.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "src/surface/regional-extractor.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/regional-surface.test.mjs"
