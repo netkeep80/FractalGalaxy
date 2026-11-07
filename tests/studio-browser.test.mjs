@@ -278,7 +278,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
     });
 
     await t.test('surface proof and unresolved rendering have distinct visual effects, and only proven patches triangulate', async () => {
-      await cdp.evaluate('document.querySelector("[data-surface-mode=debug]").click()');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
       const hash = () => cdp.evaluate('(() => {const a=document.getElementById("referenceView").getContext("2d").getImageData(0,0,600,420).data;let h=2166136261;for(let i=0;i<a.length;i+=4)h=Math.imul(h^a[i],16777619);return h>>>0;})()');
       const setTriangles = checked => cdp.evaluate('(() => {const e=document.getElementById("showTriangulation");e.checked='+checked+';e.dispatchEvent(new Event("change",{bubbles:true}));})()');
       await setControl('interfaceSource','manual');
@@ -299,7 +299,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       assert.notEqual(unresolvedWithTriangles,proven,'unresolved and proven must look different');
       await setTriangles(true);
       await setControl('interfaceSource','procedural');
-      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
     });
 
     await t.test('S2 browser proof: local filled mesh, diagnostic mode and explicit uncertainty',async()=>{
@@ -309,7 +309,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
       await setControl('mediumB','ROCK');
-      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
       const get=expression=>cdp.evaluate(expression);
       const png=()=>get('document.getElementById("referenceView").toDataURL()');
       const initial=await png();
@@ -329,13 +329,13 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       const surfaceStatus=await get('document.getElementById("studioSurfaceStatus").textContent');
       assert.match(surfaceStatus,/доказан/);
 
-      await cdp.evaluate('document.querySelector("[data-surface-mode=debug]").click()');
-      assert.equal(await get('document.querySelector("[data-surface-mode=debug]").getAttribute("aria-pressed")'),'true');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
+      assert.equal(await get('document.querySelector("button[data-surface-mode=debug]").getAttribute("aria-pressed")'),'true');
       assert.equal(await get('document.getElementById("studioMeshTriangles").textContent'),'8');
       assert.notEqual(await png(),painted,'debug patch overlay must differ from filled view');
       assert.equal((await inspect()).path,original.path);
       assert.equal(await get('document.getElementById("studioRingCount").textContent'),ringCount);
-      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
       assert.equal(await png(),painted,'switching display mode must recover bit-identical proven surface pixels');
 
       await setControl('mediumA','MIXED');
@@ -348,7 +348,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       await setControl('studioLanguage','en');
       assert.equal(await get('document.getElementById("studioLegendProven").textContent'),'Proven material interface');
       assert.equal(await get('document.getElementById("studioLegendUnresolved").textContent'),'Unresolved proof region');
-      assert.equal(await get('document.querySelector("[data-surface-mode=surface]").textContent'),'Surface');
+      assert.equal(await get('document.querySelector("button[data-surface-mode=surface]").textContent'),'Surface');
       assert.equal(await png(),unresolved,'translation must not alter geometry pixels');
       await setControl('studioLanguage','ru');
       assert.equal(await png(),unresolved);
@@ -471,7 +471,7 @@ test('S1 acceptance: actual pointer targets, synchronized views, hierarchy limit
       await setControl('interfaceSource','manual');
       await setControl('mediumA','ROCK');
       await setControl('mediumB','EMPTY');
-      await cdp.evaluate('document.querySelector("[data-surface-mode=surface]").click()');
+      await cdp.evaluate('document.querySelector("button[data-surface-mode=surface]").click()');
       await setControl('faceAxis','z');
       await setControl('faceSide','1');
       await setControl('deformBlend','0','input');
