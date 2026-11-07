@@ -14,3 +14,11 @@ relations:
     target:
       kind: artifact
       path: "docs/studio-workspace-requirements.md"
+  - predicates: [implemented_by]
+    target:
+      kind: artifact
+      path: "demo/studio-i18n.mjs"
+  - predicates: [verified_by]
+    target:
+      kind: artifact
+      path: "tests/studio-i18n.test.mjs"
