@@ -780,10 +780,10 @@ test('S3 adversarial regressions: discovery, regional edit, all topology paths a
     await cdp.evaluate('document.querySelector("[data-view=deformed]").click()');
     await cdp.evaluate('document.querySelector("button[data-surface-mode=debug]").click()');
     await clearCapture();await cdp.evaluate('__fgS3Audit.redraw()');
-    const diagnostic=await cdp.evaluate("(() => {const center=__fgS3Audit.project([0,0,1]);const lines=(globalThis.__fgS3Strokes??[]).filter(path=>Math.abs(path.width-2.2)<1e-9);return{count:lines.length,lengths:lines.map(line=>line.points.length),distances:lines.map(line=>Math.min(...line.points.map(point=>Math.hypot(point[0]-center.x,point[1]-center.y))))};})()");
-    assert.equal(diagnostic.count,2);
-    assert.ok(diagnostic.lengths.every(length=>length>2));
-    assert.ok(diagnostic.distances.every(distance=>distance<1e-7),'every selected central topology line must record the same canonical deformed crossing');
+    const diagnostic=await cdp.evaluate("(() => {const center=__fgS3Audit.project([0,0,1]);const lines=(globalThis.__fgS3Strokes??[]).filter(path=>/102,\\s*235,\\s*190/.test(path.style));const distances=lines.map(line=>Math.min(...line.points.map(point=>Math.hypot(point[0]-center.x,point[1]-center.y))));return{count:lines.length,lengths:lines.map(line=>line.points.length),distances,central:distances.filter(distance=>distance<1e-7).length};})()");
+    assert.equal(diagnostic.count,6,'selected face must draw all six canonical topology polylines');
+    assert.ok(diagnostic.lengths.every(length=>length>2),'every selected topology line must contain canonical intermediate vertices');
+    assert.equal(diagnostic.central,2,'the two central selected topology lines must share the canonical crossing');
 
     // S3-AUD-04: unresolved perimeter and proven boundary use one target-depth sampling contract.
     await setControl('interfaceSource','procedural');await setControl('fixture','height');

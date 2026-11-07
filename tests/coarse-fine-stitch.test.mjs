@@ -86,7 +86,7 @@ test('S3-B1 rejects incomplete, duplicate and non-coplanar 1:4 seams',()=>{
   );
   assert.throws(
     ()=>stitchCoarseFineInterface({coarse,fineFaces:shifted}),
-    /plane|coplanar/i
+    /plane|coplanar|aligned|octree grid/i
   );
 });
 
