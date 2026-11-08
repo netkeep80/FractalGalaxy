@@ -91,3 +91,21 @@ world coordinates X
 ```
 
 Таким образом, octree-куб является адресной и топологической ячейкой и не обязан оставаться геометрическим кубом.
+
+
+## Производительность интерактивного отображения
+
+Performance-требования не разрешают менять материальную семантику ради FPS.
+
+```text
+FG-RENDER-000  Производное отображение мира
+└── FG-RENDER-011  Точный spatial broad-phase для visibility ordering
+
+FG-STUDIO-000  Интерактивное исследование фрактальной материи
+└── FG-STUDIO-022  Интерактивный camera-only redraw без перестроения мира
+```
+
+Камера относится к view-domain. Изменение только камеры не инвалидирует B, D, M, material proof,
+regional extraction или canonical mesh. Пространственное отсечение в renderer допускается только
+как conservative broad-phase: narrow-phase и итоговый painter order для реальных пересечений
+остаются семантически эквивалентны exhaustive алгоритму.
