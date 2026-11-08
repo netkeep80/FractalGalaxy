@@ -68,6 +68,12 @@ Every pair is normalized by original triangle index before exact `projectedDepth
 Therefore broad-phase enumeration order cannot alter floating-point argument order relative to the
 exhaustive algorithm.
 
+The exact narrow-phase itself deliberately preserves the accepted BASE S2 arithmetic and operation
+order (Sutherland-Hodgman clipping, BASE line intersection and BASE barycentric depth interpolation).
+The performance optimization is outside that semantic kernel: the two-axis broad-phase reduces how
+often it runs. This is regression-tested by the large translated-coordinate counterexample that
+previously made HEAD exhaustive diverge from BASE.
+
 Normal-suite regressions include:
 
 - the independent large-coordinate two-triangle counterexample;
@@ -80,11 +86,20 @@ Normal-suite regressions include:
 Kahn ordering uses a priority heap for zero-incoming nodes and keeps deterministic depth/index
 fallback behavior. Cycle fallback semantics remain the same as the exhaustive renderer.
 
-## Projection reuse
+## Projection reuse and visibility-cache identity
 
 Each canonical mesh vertex is projected once per frame. Triangle indices reuse those projected
 vertices. Stored normals are reused only because current regional mesh assembly computes normals
 from the corresponding reference/deformed vertex positions.
+
+Painter-order cache identity includes the complete Studio camera state that can affect current
+numerical ordering semantics: yaw, pitch and zoom. The renderer additionally separates reference
+and deformed geometry in its internal cache identity. Visibility-order caching is enabled only for
+frozen mesh objects; mutable public renderer inputs are recomputed, preventing stale ordering after
+in-place coordinate changes.
+
+The controlled zoom benchmark uses monotonically changing zoom values, so the >=100x acceptance
+result cannot be obtained by alternating between a small set of cached zoom states.
 
 ## Cached regional proof-gap geometry
 

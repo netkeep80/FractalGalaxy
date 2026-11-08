@@ -926,11 +926,13 @@ test('PERF camera-only regional interaction is cached, coalesced and sub-100ms',
     assert.ok(eventResult.lastVisibilityAllPairs>0);
     assert.ok(eventResult.lastVisibilityCandidates*100<eventResult.lastVisibilityAllPairs,
       'regional painter narrow-phase must cut candidate pairs by >=100x: '+JSON.stringify(eventResult));
+    assert.equal(eventResult.lastVisibilityCacheHit,false,
+      'a changed zoom must not reuse painter order from another zoom state');
     assert.ok(eventResult.lastVisibilityBroadPhaseOperations<eventResult.lastVisibilityAllPairs/20,
       'reported broad-phase tree/sort work must remain far below all-pairs: '+JSON.stringify(eventResult));
 
     // Independent event-to-frame timings: 20 distinct camera redraws, not one lucky lastViewMs sample.
-    const distribution=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<20;i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}const sorted=[...samples].sort((a,b)=>a-b);return{samples,p50:sorted[Math.floor(sorted.length*.5)],p95:sorted[Math.floor(sorted.length*.95)],max:sorted.at(-1),snapshot:__fractalGalaxyPerformance.snapshot()};})()');
+    const distribution=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<20;i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}const sorted=[...samples].sort((a,b)=>a-b);return{samples,p50:sorted[Math.floor(sorted.length*.5)],p95:sorted[Math.floor(sorted.length*.95)],max:sorted.at(-1),snapshot:__fractalGalaxyPerformance.snapshot()};})()');
     assert.ok(distribution.p50<=100,'20-frame median camera latency must be <=100ms: '+JSON.stringify(distribution));
     assert.ok(distribution.p95<=150,'camera p95 must remain bounded in CI: '+JSON.stringify(distribution));
     assert.equal(distribution.snapshot.fullBuilds,before.fullBuilds);

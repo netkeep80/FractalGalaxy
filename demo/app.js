@@ -961,7 +961,7 @@ function drawRegionalProofSurface(context,canvasElement,deformed){
   paintProvenSurface(context,mesh,project,{
     deformed,
     stats:visibilityStats,
-    visibilityCacheKey:camera.yaw+'|'+camera.pitch,
+    visibilityCacheKey:camera.yaw+'|'+camera.pitch+'|'+camera.zoom,
     reusePrepared:true
   });
   studioPerformance.lastVisibilityAllPairs=visibilityStats.allPairs??0;

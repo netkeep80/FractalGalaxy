@@ -289,3 +289,120 @@ test('PERF reusable prepared-frame path is behaviorally identical across changin
   assert.deepEqual(reusable,normal);
  }
 });
+
+
+test('PERF audit regression FG-PERF-007: zoom-dependent area threshold cannot reuse another zoom painter order',()=>{
+  const s=.0001;
+  const positions=[
+    [0,0,-2],[s,0,2],[0,s,2],
+    [.1*s,.1*s,0],[.2*s,.1*s,0],[.1*s,.2*s,0]
+  ];
+  const mesh=Object.freeze({
+    vertices:Object.freeze(positions.map(position=>Object.freeze({
+      reference:Object.freeze([...position]),position:Object.freeze([...position])
+    }))),
+    triangles:Object.freeze([
+      Object.freeze({indices:Object.freeze([0,1,2]),decision:'PRESENT'}),
+      Object.freeze({indices:Object.freeze([3,4,5]),decision:'PRESENT'})
+    ]),
+    unresolved:Object.freeze([])
+  });
+  const project=scale=>([x,y,z])=>({x:800+x*scale,y:500+y*scale,depth:z});
+  const at100=prepareProofTriangles(mesh,project(100),{
+    visibilityCacheKey:'0|0|100',reusePrepared:true
+  }).map(t=>t.index);
+  const at500Cached=prepareProofTriangles(mesh,project(500),{
+    visibilityCacheKey:'0|0|500',reusePrepared:true
+  }).map(t=>t.index);
+  const at500Fresh=prepareProofTriangles(mesh,project(500),{
+    broadPhase:true
+  }).map(t=>t.index);
+  assert.deepEqual(at100,[1,0]);
+  assert.deepEqual(at500Cached,at500Fresh);
+  assert.deepEqual(at500Fresh,[0,1]);
+});
+
+test('PERF audit regression FG-PERF-008: exact narrow-phase preserves accepted BASE order at large translated coordinates',()=>{
+  const positions=[
+    [-1000000000.5530576,-1000000002.021376,-0.7129086367785931],
+    [-999999999.335029,-1000000002.2513342,-1.6201325496658683],
+    [-1000000000.8036442,-1000000000.8033475,-0.26821632497012615],
+    [-1000000000.1438776,-1000000001.7896843,-0.7181582227349281],
+    [-999999998.2617798,-1000000001.7812183,-1.5558584546670318],
+    [-1000000000.6204444,-999999999.9075865,-0.39324559830129147]
+  ];
+  const mesh={
+    vertices:positions.map(position=>({reference:position,position})),
+    triangles:[
+      {indices:[0,1,2],decision:'PRESENT'},
+      {indices:[3,4,5],decision:'PRESENT'}
+    ],unresolved:[]
+  };
+  const identity=([x,y,z])=>({x,y,depth:z});
+  const exhaustive=prepareProofTriangles(mesh,identity,{broadPhase:false}).map(t=>t.index);
+  const optimized=prepareProofTriangles(mesh,identity,{broadPhase:true}).map(t=>t.index);
+  assert.deepEqual(exhaustive,[0,1]);
+  assert.deepEqual(optimized,exhaustive);
+});
+
+test('PERF audit regression FG-PERF-009: reference and deformed visibility caches are distinct for one immutable mesh',()=>{
+  const refs=[
+    [0,0,2],[2,0,2],[0,2,2],
+    [.2,.2,0],[1.8,.2,0],[.2,1.8,0]
+  ];
+  const defs=[
+    [0,0,-1],[2,0,-1],[0,2,-1],
+    [.2,.2,3],[1.8,.2,3],[.2,1.8,3]
+  ];
+  const vertices=refs.map((reference,index)=>Object.freeze({
+    reference:Object.freeze([...reference]),
+    position:Object.freeze([...defs[index]])
+  }));
+  const mesh=Object.freeze({
+    vertices:Object.freeze(vertices),
+    triangles:Object.freeze([
+      Object.freeze({indices:Object.freeze([0,1,2]),decision:'PRESENT'}),
+      Object.freeze({indices:Object.freeze([3,4,5]),decision:'PRESENT'})
+    ]),
+    unresolved:Object.freeze([])
+  });
+  const project=([x,y,z])=>({x,y,depth:z});
+  const referenceOrder=prepareProofTriangles(mesh,project,{
+    deformed:false,visibilityCacheKey:'same-camera',reusePrepared:true
+  }).map(t=>t.index);
+  const deformedCached=prepareProofTriangles(mesh,project,{
+    deformed:true,visibilityCacheKey:'same-camera',reusePrepared:true
+  }).map(t=>t.index);
+  const deformedFresh=prepareProofTriangles(mesh,project,{
+    deformed:true,broadPhase:true
+  }).map(t=>t.index);
+  assert.deepEqual(referenceOrder,[1,0]);
+  assert.deepEqual(deformedFresh,[0,1]);
+  assert.deepEqual(deformedCached,deformedFresh);
+});
+
+test('PERF visibility cache is disabled for mutable mesh objects so coordinate mutation cannot return stale order',()=>{
+  const vertices=[
+    {reference:[0,0,2],position:[0,0,2]},
+    {reference:[2,0,2],position:[2,0,2]},
+    {reference:[0,2,2],position:[0,2,2]},
+    {reference:[.2,.2,0],position:[.2,.2,0]},
+    {reference:[1.8,.2,0],position:[1.8,.2,0]},
+    {reference:[.2,1.8,0],position:[.2,1.8,0]}
+  ];
+  const mesh={vertices,triangles:[
+    {indices:[0,1,2],decision:'PRESENT'},
+    {indices:[3,4,5],decision:'PRESENT'}
+  ],unresolved:[]};
+  const project=([x,y,z])=>({x,y,depth:z});
+  const before=prepareProofTriangles(mesh,project,{
+    visibilityCacheKey:'same',reusePrepared:true
+  }).map(t=>t.index);
+  for(let i=0;i<3;i++)vertices[i].reference[2]=-1;
+  for(let i=3;i<6;i++)vertices[i].reference[2]=3;
+  const after=prepareProofTriangles(mesh,project,{
+    visibilityCacheKey:'same',reusePrepared:true
+  }).map(t=>t.index);
+  assert.deepEqual(before,[1,0]);
+  assert.deepEqual(after,[0,1]);
+});

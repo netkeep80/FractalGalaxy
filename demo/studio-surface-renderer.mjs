@@ -23,108 +23,55 @@ function signedArea(points){
   return twice/2;
 }
 function edgeSide(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
-const clipScratchA=new Float64Array(16);
-const clipScratchB=new Float64Array(16);
-function edgeLines(points,out=null){
-  const lines=out??new Float64Array(9);
-  const orientation=signedArea(points)>=0?1:-1;
-  for(let edge=0;edge<3;edge++){
-    const a=points[edge],b=points[(edge+1)%3];
-    const ex=b.x-a.x,ey=b.y-a.y;
-    lines[edge*3]=-orientation*ey;
-    lines[edge*3+1]=orientation*ex;
-    lines[edge*3+2]=orientation*(ey*a.x-ex*a.y);
+function lineIntersection(a,b,c,d){
+  const abx=b.x-a.x,aby=b.y-a.y,cdx=d.x-c.x,cdy=d.y-c.y;
+  const denominator=abx*cdy-aby*cdx;
+  if(Math.abs(denominator)<1e-12)return {x:b.x,y:b.y};
+  const t=((c.x-a.x)*cdy-(c.y-a.y)*cdx)/denominator;
+  return {x:a.x+t*abx,y:a.y+t*aby};
+}
+function triangleIntersectionPolygon(subject,clip){
+  let polygon=subject.map(({x,y})=>({x,y}));
+  const orientation=signedArea(clip)>=0?1:-1;
+  for(let edge=0;edge<3&&polygon.length;edge++){
+    const a=clip[edge],b=clip[(edge+1)%3],input=polygon;
+    polygon=[];
+    for(let i=0;i<input.length;i++){
+      const current=input[i],previous=input[(i+input.length-1)%input.length];
+      const currentInside=orientation*edgeSide(a,b,current)>=-1e-9;
+      const previousInside=orientation*edgeSide(a,b,previous)>=-1e-9;
+      if(currentInside!==previousInside)polygon.push(lineIntersection(previous,current,a,b));
+      if(currentInside)polygon.push(current);
+    }
   }
-  return lines;
+  return polygon;
 }
-function allOutside(lines,points,edge){
-  const a=lines[edge*3],b=lines[edge*3+1],c=lines[edge*3+2];
-  return a*points[0].x+b*points[0].y+c<-1e-9
-    &&a*points[1].x+b*points[1].y+c<-1e-9
-    &&a*points[2].x+b*points[2].y+c<-1e-9;
+function interpolatedDepth(points,p){
+  const [a,b,c]=points;
+  const denominator=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);
+  if(Math.abs(denominator)<1e-12)return null;
+  const wa=((b.y-c.y)*(p.x-c.x)+(c.x-b.x)*(p.y-c.y))/denominator;
+  const wb=((c.y-a.y)*(p.x-c.x)+(a.x-c.x)*(p.y-c.y))/denominator;
+  return wa*a.depth+wb*b.depth+(1-wa-wb)*c.depth;
 }
-function trianglesMayOverlapArea(a,b){
-  for(let edge=0;edge<3;edge++)if(allOutside(a.edgeLines,b.points,edge))return false;
-  for(let edge=0;edge<3;edge++)if(allOutside(b.edgeLines,a.points,edge))return false;
-  return true;
-}
-function depthPlane(points,out=null){
-  const a=points[0],b=points[1],c=points[2];
-  const abx=b.x-a.x,aby=b.y-a.y,acz=b.depth-a.depth;
-  const acx=c.x-a.x,acy=c.y-a.y,bcz=c.depth-a.depth;
-  const determinant=abx*acy-acx*aby;
-  if(Math.abs(determinant)<1e-12)return null;
-  const plane=out??{};
-  plane.x=a.x;plane.y=a.y;plane.depth=a.depth;
-  plane.dx=(acz*acy-bcz*aby)/determinant;
-  plane.dy=(abx*bcz-acx*acz)/determinant;
-  return plane;
-}
-function depthAtPlane(plane,x,y){
-  return plane.depth+plane.dx*(x-plane.x)+plane.dy*(y-plane.y);
-}
-// Same Sutherland-Hodgman overlap semantics as the original clipper.
-// Depth interpolation uses one precomputed screen-space plane per triangle.
+// Deliberately preserves the accepted BASE S2 arithmetic/order semantics.
+// The performance layer is outside this function: projected AABB broad-phase
+// reduces how often the exact BASE relation has to run.
 function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
-  if(!a.depthPlane||!b.depthPlane)return 0;
-  if(!trianglesMayOverlapArea(a,b)){
-    if(counters)counters.satRejected++;
-    return 0;
-  }
   if(counters)counters.clipCalls++;
-
-  let input=clipScratchA,output=clipScratchB,count=3;
-  for(let i=0;i<3;i++){
-    input[i*2]=a.points[i].x;
-    input[i*2+1]=a.points[i].y;
-  }
-  for(let edge=0;edge<3&&count;edge++){
-    const ea=b.edgeLines[edge*3],eb=b.edgeLines[edge*3+1],ec=b.edgeLines[edge*3+2];
-    let outCount=0;
-    let previousX=input[(count-1)*2],previousY=input[(count-1)*2+1];
-    let previousValue=ea*previousX+eb*previousY+ec;
-    let previousInside=previousValue>=-1e-9;
-    for(let i=0;i<count;i++){
-      const currentX=input[i*2],currentY=input[i*2+1];
-      const currentValue=ea*currentX+eb*currentY+ec;
-      const currentInside=currentValue>=-1e-9;
-      if(currentInside!==previousInside){
-        const denominator=previousValue-currentValue;
-        let ix=currentX,iy=currentY;
-        if(Math.abs(denominator)>=1e-18){
-          const t=previousValue/denominator;
-          ix=previousX+t*(currentX-previousX);
-          iy=previousY+t*(currentY-previousY);
-        }
-        output[outCount*2]=ix;output[outCount*2+1]=iy;outCount++;
-      }
-      if(currentInside){
-        output[outCount*2]=currentX;output[outCount*2+1]=currentY;outCount++;
-      }
-      previousX=currentX;previousY=currentY;
-      previousValue=currentValue;previousInside=currentInside;
-    }
-    count=outCount;
-    const swap=input;input=output;output=swap;
-  }
-  if(count<3)return 0;
-
-  let twiceArea=0,sumX=0,sumY=0;
-  for(let i=0;i<count;i++){
-    const j=(i+1)%count;
-    const x=input[i*2],y=input[i*2+1];
-    twiceArea+=x*input[j*2+1]-input[j*2]*y;
-    sumX+=x;sumY+=y;
-  }
-  if(Math.abs(twiceArea/2)<1e-6)return 0;
-
+  const overlap=triangleIntersectionPolygon(a.points,b.points);
+  if(overlap.length<3||Math.abs(signedArea(overlap))<1e-6)return 0;
+  const samples=[...overlap,{
+    x:overlap.reduce((sum,p)=>sum+p.x,0)/overlap.length,
+    y:overlap.reduce((sum,p)=>sum+p.y,0)/overlap.length
+  }];
   let relation=0;
-  for(let i=0;i<=count;i++){
-    const x=i<count?input[i*2]:sumX/count;
-    const y=i<count?input[i*2+1]:sumY/count;
-    const delta=depthAtPlane(a.depthPlane,x,y)-depthAtPlane(b.depthPlane,x,y);
+  for(const sample of samples){
+    const ad=interpolatedDepth(a.points,sample),bd=interpolatedDepth(b.points,sample);
+    if(ad===null||bd===null)return 0;
+    const delta=ad-bd;
     if(Math.abs(delta)<1e-8)continue;
     const sign=Math.sign(delta);
     if(relation&&relation!==sign)return 0;
@@ -393,19 +340,28 @@ export function proofGapBoundaryVertices({
 const meshStyleCache=new WeakMap();
 const meshVisibilityOrderCache=new WeakMap();
 const meshPreparedFrameCache=new WeakMap();
-function cachedVisibilityOrder(mesh,key){
-  if(key===null||key===undefined)return null;
-  return meshVisibilityOrderCache.get(mesh)?.get(String(key))??null;
+function cacheableMesh(mesh){
+  return Object.isFrozen(mesh)&&Object.isFrozen(mesh.vertices)&&Object.isFrozen(mesh.triangles);
 }
-function storeVisibilityOrder(mesh,key,order){
-  if(key===null||key===undefined)return;
+function visibilityIdentity(key,deformed){
+  if(key===null||key===undefined)return null;
+  return (deformed?'deformed|':'reference|')+String(key);
+}
+function cachedVisibilityOrder(mesh,key,deformed){
+  const identity=visibilityIdentity(key,deformed);
+  if(identity===null||!cacheableMesh(mesh))return null;
+  return meshVisibilityOrderCache.get(mesh)?.get(identity)??null;
+}
+function storeVisibilityOrder(mesh,key,deformed,order){
+  const identity=visibilityIdentity(key,deformed);
+  if(identity===null||!cacheableMesh(mesh))return;
   let cache=meshVisibilityOrderCache.get(mesh);
   if(!cache){cache=new Map();meshVisibilityOrderCache.set(mesh,cache);}
-  if(cache.size>=8&&!cache.has(String(key)))cache.delete(cache.keys().next().value);
-  cache.set(String(key),Object.freeze([...order]));
+  if(cache.size>=12&&!cache.has(identity))cache.delete(cache.keys().next().value);
+  cache.set(identity,Object.freeze([...order]));
 }
 function triangleStyles(mesh){
-  let cached=meshStyleCache.get(mesh);
+  let cached=cacheableMesh(mesh)?meshStyleCache.get(mesh):null;
   if(cached)return cached;
   cached=mesh.triangles.map(triangle=>{
     if(!Array.isArray(triangle.normal)||triangle.normal.length!==3)return null;
@@ -413,7 +369,7 @@ function triangleStyles(mesh){
     const rgb=[Math.round(43*light),Math.round(215*light),Math.round(163*light)];
     return {light,fill:'rgb('+rgb.join(',')+')'};
   });
-  meshStyleCache.set(mesh,cached);
+  if(cacheableMesh(mesh))meshStyleCache.set(mesh,cached);
   return cached;
 }
 function createPreparedFrame(mesh){
@@ -427,9 +383,6 @@ function createPreparedFrame(mesh){
       points,
       bounds:{minX:0,maxX:0,minY:0,maxY:0},
       depth:0,
-      depthPlane:null,
-      depthPlaneStorage:{x:0,y:0,depth:0,dx:0,dy:0},
-      edgeLines:new Float64Array(9),
       light:style?.light??0,
       fill:style?.fill??null
     };
@@ -437,6 +390,7 @@ function createPreparedFrame(mesh){
   return {projectedVertices,prepared};
 }
 function preparedFrame(mesh){
+  if(!cacheableMesh(mesh))return createPreparedFrame(mesh);
   let frame=meshPreparedFrameCache.get(mesh);
   if(!frame){frame=createPreparedFrame(mesh);meshPreparedFrameCache.set(mesh,frame);}
   return frame;
@@ -472,8 +426,6 @@ export function prepareProofTriangles(mesh,project,{
       bounds.minX=Math.min(p0.x,p1.x,p2.x);bounds.maxX=Math.max(p0.x,p1.x,p2.x);
       bounds.minY=Math.min(p0.y,p1.y,p2.y);bounds.maxY=Math.max(p0.y,p1.y,p2.y);
       record.depth=(p0.depth+p1.depth+p2.depth)/3;
-      record.depthPlane=depthPlane(record.points,record.depthPlaneStorage);
-      edgeLines(record.points,record.edgeLines);
       let style=styles[index];
       if(!style){
         const spatial=triangle.indices.map(i=>spatialVertices[i]);
@@ -510,14 +462,12 @@ export function prepareProofTriangles(mesh,project,{
           maxY:Math.max(points[0].y,points[1].y,points[2].y)
         },
         depth:(points[0].depth+points[1].depth+points[2].depth)/3,
-        depthPlane:depthPlane(points),
-        edgeLines:edgeLines(points),
         light:style.light,
         fill:style.fill
       };
     });
   }
-  const cachedOrder=cachedVisibilityOrder(mesh,visibilityCacheKey);
+  const cachedOrder=cachedVisibilityOrder(mesh,visibilityCacheKey,deformed);
   if(cachedOrder&&cachedOrder.length===prepared.length){
     if(stats&&typeof stats==='object')Object.assign(stats,{
       triangles:prepared.length,
@@ -530,7 +480,7 @@ export function prepareProofTriangles(mesh,project,{
     return cachedOrder.map(index=>prepared[index]);
   }
   const ordered=visibilityOrder(prepared,{broadPhase,stats});
-  storeVisibilityOrder(mesh,visibilityCacheKey,ordered.map(triangle=>triangle.index));
+  storeVisibilityOrder(mesh,visibilityCacheKey,deformed,ordered.map(triangle=>triangle.index));
   if(stats&&typeof stats==='object')stats.visibilityCacheHit=false;
   return ordered;
 }

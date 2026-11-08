@@ -107,7 +107,7 @@ async function measure(root,binary,profile,samples,mode){
     const triangles=await cdp.evaluate('Number(document.getElementById("studioMeshTriangles").textContent)');
     let timings;
     if(mode==='zoom'){
-      timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
+      timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
     }else if(mode==='rotate'){
       const hit=await cdp.evaluate('(()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});const r=c.getBoundingClientRect();globalThis.__fgRotateTiming={start:0,samples:[]};document.addEventListener("pointermove",()=>{globalThis.__fgRotateTiming.start=performance.now();},{capture:true});c.addEventListener("pointermove",()=>{const start=globalThis.__fgRotateTiming.start;requestAnimationFrame(()=>globalThis.__fgRotateTiming.samples.push(performance.now()-start));});return{x:r.left+r.width*.5,y:r.top+r.height*.5};})()');
       await cdp.evaluate('new Promise(requestAnimationFrame)');
