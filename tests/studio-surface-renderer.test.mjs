@@ -227,34 +227,42 @@ test('PERF interval broad-phase avoids hidden quadratic scan when X overlaps but
 });
 
 
-test('PERF zoom-equivalent projection reuses exact painter order cache while yaw/pitch key invalidates it',()=>{
+test('PERF visibility cache reuses only the same full camera state and invalidates zoom/yaw/pitch changes',()=>{
  const positions=[
   [0,0,.1],[2,0,.1],[0,2,.1],
   [.4,.4,.5],[2.4,.4,.5],[.4,2.4,.5]
  ];
- const fixture={
-  vertices:positions.map(position=>({reference:position,position})),
-  triangles:[
-   {indices:[0,1,2],decision:'PRESENT'},
-   {indices:[3,4,5],decision:'PRESENT'}
-  ],unresolved:[]
- };
- const statsA={},statsZoom={},statsRotated={};
+ const fixture=Object.freeze({
+  vertices:Object.freeze(positions.map(position=>Object.freeze({
+    reference:Object.freeze([...position]),position:Object.freeze([...position])
+  }))),
+  triangles:Object.freeze([
+   Object.freeze({indices:Object.freeze([0,1,2]),decision:'PRESENT'}),
+   Object.freeze({indices:Object.freeze([3,4,5]),decision:'PRESENT'})
+  ]),unresolved:Object.freeze([])
+ });
+ const statsA={},statsSame={},statsZoom={},statsRotated={};
+ const project20=([x,y,z])=>({x:100+x*20,y:100+y*20,depth:z});
  const a=prepareProofTriangles(
-  fixture,([x,y,z])=>({x:100+x*20,y:100+y*20,depth:z}),
-  {visibilityCacheKey:'yaw0|pitch0',stats:statsA}
+  fixture,project20,
+  {visibilityCacheKey:'yaw0|pitch0|zoom20',stats:statsA,reusePrepared:true}
  ).map(t=>t.index);
- const zoom=prepareProofTriangles(
-  fixture,([x,y,z])=>({x:100+x*80,y:100+y*80,depth:z}),
-  {visibilityCacheKey:'yaw0|pitch0',stats:statsZoom}
+ const same=prepareProofTriangles(
+  fixture,project20,
+  {visibilityCacheKey:'yaw0|pitch0|zoom20',stats:statsSame,reusePrepared:true}
  ).map(t=>t.index);
- assert.deepEqual(zoom,a);
+ assert.deepEqual(same,a);
  assert.equal(statsA.visibilityCacheHit,false);
- assert.equal(statsZoom.visibilityCacheHit,true);
- assert.equal(statsZoom.candidatePairs,0);
+ assert.equal(statsSame.visibilityCacheHit,true);
+ assert.equal(statsSame.candidatePairs,0);
+ prepareProofTriangles(
+  fixture,([x,y,z])=>({x:100+x*80,y:100+y*80,depth:z}),
+  {visibilityCacheKey:'yaw0|pitch0|zoom80',stats:statsZoom,reusePrepared:true}
+ );
+ assert.equal(statsZoom.visibilityCacheHit,false);
  prepareProofTriangles(
   fixture,([x,y,z])=>({x:100+(x+z*.2)*20,y:100+y*20,depth:z-x*.1}),
-  {visibilityCacheKey:'yaw1|pitch0',stats:statsRotated}
+  {visibilityCacheKey:'yaw1|pitch0|zoom20',stats:statsRotated,reusePrepared:true}
  );
  assert.equal(statsRotated.visibilityCacheHit,false);
  assert.ok(statsRotated.candidatePairs>0);
