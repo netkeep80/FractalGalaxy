@@ -414,3 +414,52 @@ test('PERF visibility cache is disabled for mutable mesh objects so coordinate m
   assert.deepEqual(before,[1,0]);
   assert.deepEqual(after,[0,1]);
 });
+
+
+test('PERF audit regression FG-PERF-010: shallow-frozen mesh with mutable nested coordinates is never cacheable',()=>{
+  const refs=[
+    [0,0,2],[2,0,2],[0,2,2],
+    [.2,.2,0],[1.8,.2,0],[.2,1.8,0]
+  ];
+  const vertices=Object.freeze(refs.map(reference=>Object.freeze({
+    reference,
+    position:Object.freeze([...reference])
+  })));
+  const triangles=Object.freeze([
+    Object.freeze({indices:Object.freeze([0,1,2]),decision:'PRESENT'}),
+    Object.freeze({indices:Object.freeze([3,4,5]),decision:'PRESENT'})
+  ]);
+  const mesh=Object.freeze({vertices,triangles});
+  const project=([x,y,z])=>({x,y,depth:z});
+  const before=prepareProofTriangles(mesh,project,{
+    visibilityCacheKey:'same',reusePrepared:true
+  }).map(t=>t.index);
+  refs.forEach((point,index)=>{point[2]=index<3?-1:3;});
+  const stats={};
+  const after=prepareProofTriangles(mesh,project,{
+    visibilityCacheKey:'same',reusePrepared:true,stats
+  }).map(t=>t.index);
+  const fresh=prepareProofTriangles(mesh,project,{}).map(t=>t.index);
+  assert.deepEqual(before,[1,0]);
+  assert.deepEqual(fresh,[0,1]);
+  assert.deepEqual(after,fresh);
+  assert.equal(stats.visibilityCacheHit,false);
+});
+
+test('PERF audit regression FG-PERF-010: shallow-frozen mesh with mutable triangle normal never reuses stale style',()=>{
+  const normal=[0,0,1];
+  const vertices=Object.freeze([
+    Object.freeze({reference:Object.freeze([0,0,0]),position:Object.freeze([0,0,0])}),
+    Object.freeze({reference:Object.freeze([1,0,0]),position:Object.freeze([1,0,0])}),
+    Object.freeze({reference:Object.freeze([0,1,0]),position:Object.freeze([0,1,0])})
+  ]);
+  const triangles=Object.freeze([
+    Object.freeze({indices:Object.freeze([0,1,2]),decision:'PRESENT',normal})
+  ]);
+  const mesh=Object.freeze({vertices,triangles});
+  const project=([x,y,z])=>({x,y,depth:z});
+  const before=prepareProofTriangles(mesh,project,{reusePrepared:true})[0].light;
+  normal[0]=1;normal[1]=0;normal[2]=0;
+  const after=prepareProofTriangles(mesh,project,{reusePrepared:true})[0].light;
+  assert.notEqual(after,before);
+});

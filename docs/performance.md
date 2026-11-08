@@ -94,9 +94,15 @@ from the corresponding reference/deformed vertex positions.
 
 Painter-order cache identity includes the complete Studio camera state that can affect current
 numerical ordering semantics: yaw, pitch and zoom. The renderer additionally separates reference
-and deformed geometry in its internal cache identity. Visibility-order caching is enabled only for
-frozen mesh objects; mutable public renderer inputs are recomputed, preventing stale ordering after
-in-place coordinate changes.
+and deformed geometry in its internal cache identity.
+
+All mesh-derived renderer caches (visibility order, prepared projection storage and stored-normal
+styles) are enabled only after one successful deep-immutability check of the data they depend on:
+the mesh and outer arrays, every vertex record plus reference/position coordinate arrays, and every
+triangle record plus indices and optional normal must all be frozen. A shallow-frozen container is
+therefore treated as mutable. Positive checks are memoized in a WeakSet, so canonical Regional meshes
+pay this validation once; mutable or partially frozen public renderer inputs are recomputed and
+cannot return stale order, prepared geometry or lighting after nested mutation.
 
 The controlled zoom benchmark uses monotonically changing zoom values, so the >=100x acceptance
 result cannot be obtained by alternating between a small set of cached zoom states.

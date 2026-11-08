@@ -372,8 +372,23 @@ export function proofGapBoundaryVertices({
 const meshStyleCache=new WeakMap();
 const meshVisibilityOrderCache=new WeakMap();
 const meshPreparedFrameCache=new WeakMap();
+const deeplyImmutableMeshCache=new WeakSet();
+function frozenArray(value){return Array.isArray(value)&&Object.isFrozen(value);}
 function cacheableMesh(mesh){
-  return Object.isFrozen(mesh)&&Object.isFrozen(mesh.vertices)&&Object.isFrozen(mesh.triangles);
+  if(deeplyImmutableMeshCache.has(mesh))return true;
+  if(!Object.isFrozen(mesh)||!frozenArray(mesh.vertices)||!frozenArray(mesh.triangles))return false;
+  for(const vertex of mesh.vertices){
+    if(!vertex||typeof vertex!=='object'||!Object.isFrozen(vertex)
+      ||!frozenArray(vertex.reference)||!frozenArray(vertex.position))return false;
+  }
+  for(const triangle of mesh.triangles){
+    if(!triangle||typeof triangle!=='object'||!Object.isFrozen(triangle)
+      ||!frozenArray(triangle.indices))return false;
+    if(triangle.normal!==undefined&&triangle.normal!==null
+      &&(!Array.isArray(triangle.normal)||!Object.isFrozen(triangle.normal)))return false;
+  }
+  deeplyImmutableMeshCache.add(mesh);
+  return true;
 }
 function visibilityIdentity(key,deformed){
   if(key===null||key===undefined)return null;
