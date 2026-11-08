@@ -109,18 +109,16 @@ async function measure(root,binary,profile,samples,mode){
     if(mode==='zoom'){
       timings=await cdp.evaluate('(async()=>{const canvas=document.getElementById("deformedView"),samples=[];for(let i=0;i<'+samples+';i++){await new Promise(requestAnimationFrame);const start=performance.now();canvas.dispatchEvent(new WheelEvent("wheel",{deltaY:i%2?3:-3,bubbles:true,cancelable:true}));await new Promise(requestAnimationFrame);samples.push(performance.now()-start);}return samples;})()');
     }else if(mode==='rotate'){
-      const hit=await cdp.evaluate('(()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});const r=c.getBoundingClientRect();return{x:r.left+r.width*.5,y:r.top+r.height*.5};})()');
+      const hit=await cdp.evaluate('(()=>{const c=document.getElementById("deformedView");c.scrollIntoView({block:"center"});const r=c.getBoundingClientRect();globalThis.__fgRotateTiming={start:0,samples:[]};document.addEventListener("pointermove",()=>{globalThis.__fgRotateTiming.start=performance.now();},{capture:true});c.addEventListener("pointermove",()=>{const start=globalThis.__fgRotateTiming.start;requestAnimationFrame(()=>globalThis.__fgRotateTiming.samples.push(performance.now()-start));});return{x:r.left+r.width*.5,y:r.top+r.height*.5};})()');
       await cdp.evaluate('new Promise(requestAnimationFrame)');
       await cdp.send('Input.dispatchMouseEvent',{type:'mousePressed',x:hit.x,y:hit.y,button:'left',clickCount:1});
-      timings=[];
       for(let i=0;i<samples;i++){
-        const start=performance.now();
         await cdp.send('Input.dispatchMouseEvent',{
           type:'mouseMoved',x:hit.x+8*(i+1),y:hit.y+((i%2)?6:-6),button:'left',buttons:1
         });
-        await cdp.evaluate('new Promise(requestAnimationFrame)');
-        timings.push(performance.now()-start);
+        await cdp.until('globalThis.__fgRotateTiming.samples.length === '+(i+1),true,'rotation paint '+(i+1));
       }
+      timings=await cdp.evaluate('globalThis.__fgRotateTiming.samples');
       await cdp.send('Input.dispatchMouseEvent',{
         type:'mouseReleased',x:hit.x+8*samples,y:hit.y,button:'left',clickCount:1
       });
