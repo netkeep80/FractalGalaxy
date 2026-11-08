@@ -23,28 +23,56 @@ function signedArea(points){
   return twice/2;
 }
 function edgeSide(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
-function lineIntersection(a,b,c,d){
+const overlapScratchA=Array.from({length:8},()=>({x:0,y:0}));
+const overlapScratchB=Array.from({length:8},()=>({x:0,y:0}));
+const centroidScratch={x:0,y:0};
+function lineIntersectionInto(a,b,c,d,out){
   const abx=b.x-a.x,aby=b.y-a.y,cdx=d.x-c.x,cdy=d.y-c.y;
   const denominator=abx*cdy-aby*cdx;
-  if(Math.abs(denominator)<1e-12)return {x:b.x,y:b.y};
+  if(Math.abs(denominator)<1e-12){
+    out.x=b.x;out.y=b.y;
+    return out;
+  }
   const t=((c.x-a.x)*cdy-(c.y-a.y)*cdx)/denominator;
-  return {x:a.x+t*abx,y:a.y+t*aby};
+  out.x=a.x+t*abx;out.y=a.y+t*aby;
+  return out;
 }
-function triangleIntersectionPolygon(subject,clip){
-  let polygon=subject.map(({x,y})=>({x,y}));
+function triangleIntersectionPolygonScratch(subject,clip){
+  let input=overlapScratchA,output=overlapScratchB,count=3;
+  for(let i=0;i<3;i++){
+    input[i].x=subject[i].x;
+    input[i].y=subject[i].y;
+  }
   const orientation=signedArea(clip)>=0?1:-1;
-  for(let edge=0;edge<3&&polygon.length;edge++){
-    const a=clip[edge],b=clip[(edge+1)%3],input=polygon;
-    polygon=[];
-    for(let i=0;i<input.length;i++){
-      const current=input[i],previous=input[(i+input.length-1)%input.length];
+  for(let edge=0;edge<3&&count;edge++){
+    const a=clip[edge],b=clip[(edge+1)%3];
+    let outCount=0;
+    for(let i=0;i<count;i++){
+      const current=input[i],previous=input[(i+count-1)%count];
       const currentInside=orientation*edgeSide(a,b,current)>=-1e-9;
       const previousInside=orientation*edgeSide(a,b,previous)>=-1e-9;
-      if(currentInside!==previousInside)polygon.push(lineIntersection(previous,current,a,b));
-      if(currentInside)polygon.push(current);
+      if(currentInside!==previousInside){
+        lineIntersectionInto(previous,current,a,b,output[outCount]);
+        outCount++;
+      }
+      if(currentInside){
+        output[outCount].x=current.x;
+        output[outCount].y=current.y;
+        outCount++;
+      }
     }
+    count=outCount;
+    const swap=input;input=output;output=swap;
   }
-  return polygon;
+  return {points:input,count};
+}
+function signedAreaCount(points,count){
+  let twice=0;
+  for(let i=0;i<count;i++){
+    const a=points[i],b=points[(i+1)%count];
+    twice+=a.x*b.y-b.x*a.y;
+  }
+  return twice/2;
 }
 function interpolatedDepth(points,p){
   const [a,b,c]=points;
@@ -55,20 +83,24 @@ function interpolatedDepth(points,p){
   return wa*a.depth+wb*b.depth+(1-wa-wb)*c.depth;
 }
 // Deliberately preserves the accepted BASE S2 arithmetic/order semantics.
-// The performance layer is outside this function: projected AABB broad-phase
-// reduces how often the exact BASE relation has to run.
+// Scratch storage removes allocation churn only; clipping predicates,
+// line-intersection arithmetic and barycentric depth formulas are unchanged.
 function projectedDepthRelation(a,b,counters=null){
   if(a.bounds.maxX<b.bounds.minX||b.bounds.maxX<a.bounds.minX
     ||a.bounds.maxY<b.bounds.minY||b.bounds.maxY<a.bounds.minY)return 0;
   if(counters)counters.clipCalls++;
-  const overlap=triangleIntersectionPolygon(a.points,b.points);
-  if(overlap.length<3||Math.abs(signedArea(overlap))<1e-6)return 0;
-  const samples=[...overlap,{
-    x:overlap.reduce((sum,p)=>sum+p.x,0)/overlap.length,
-    y:overlap.reduce((sum,p)=>sum+p.y,0)/overlap.length
-  }];
+  const overlap=triangleIntersectionPolygonScratch(a.points,b.points);
+  if(overlap.count<3||Math.abs(signedAreaCount(overlap.points,overlap.count))<1e-6)return 0;
+  let sumX=0,sumY=0;
+  for(let i=0;i<overlap.count;i++){
+    sumX+=overlap.points[i].x;
+    sumY+=overlap.points[i].y;
+  }
+  centroidScratch.x=sumX/overlap.count;
+  centroidScratch.y=sumY/overlap.count;
   let relation=0;
-  for(const sample of samples){
+  for(let i=0;i<=overlap.count;i++){
+    const sample=i<overlap.count?overlap.points[i]:centroidScratch;
     const ad=interpolatedDepth(a.points,sample),bd=interpolatedDepth(b.points,sample);
     if(ad===null||bd===null)return 0;
     const delta=ad-bd;
